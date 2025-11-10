@@ -165,7 +165,7 @@ const HeroSection = () => {
           <Link href="/wallet">
             <Button
               size="lg"
-              className="px-8 py-4 rounded-full bg-nwc-orange hover:bg-nwc-orange/90 text-white transition-all duration-300 ease-in-out shadow-lg hover:shadow-nwc-purple/20 hover:scale-105 hover:-translate-y-1"
+              className="px-8 py-4 rounded-full bg-nwc-green hover:bg-nwc-green/90 text-white transition-all duration-300 ease-in-out shadow-lg hover:shadow-nwc-purple/20 hover:scale-105 hover:-translate-y-1"
             >
               Wallet <PanelTopDashed className="ml-2 h-5 w-5" />
             </Button>

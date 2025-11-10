@@ -31,6 +31,7 @@ const config = {
         foreground: 'hsl(var(--foreground))',
         'nwc-orange': 'hsl(36 98% 57%)',
         'nwc-purple': 'hsl(251 100% 74%)',
+        'nwc-green': 'hsla(142, 66%, 30%, 1.00)',
         'nwc-highlight': 'hsl(40 100% 85%)',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
