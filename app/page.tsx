@@ -170,7 +170,7 @@ const HeroSection = () => {
               asChild
             >
               <Link href="/admin">Admin Demo</Link>
-            </Button>
+            </Button>*/
             <Button
               size="lg"
               variant="outline"
@@ -182,7 +182,7 @@ const HeroSection = () => {
                 Wallet Demo
               </Link>
             </Button>
-          </div> */}
+          </div> }
         </div>
       </div>
     </section>
