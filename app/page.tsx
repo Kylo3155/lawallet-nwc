@@ -163,15 +163,13 @@ const HeroSection = () => {
             </Button>
           </Link>
           <Link href="/wallet">
-                <Button
+            <Button
               size="lg"
-              variant="outline"
-              className="px-8 py-4 rounded-full border-white/20 text-black hover:bg-white/10 transition-all duration-300 ease-in-out bg-white hover:scale-105 hover:text-white hover:-translate-y-1"
-              asChild
+              className="px-8 py-4 rounded-full bg-nwc-orange hover:bg-nwc-orange/90 text-white transition-all duration-300 ease-in-out shadow-lg hover:shadow-nwc-purple/20 hover:scale-105 hover:-translate-y-1"
             >
-              Wallet <Wallet className="mr-2 h-5 w-5" />
+              Wallet <PanelTopDashed className="ml-2 h-5 w-5" />
             </Button>
-              </Link>
+          </Link>
           {/* <div className="flex flex-col sm:flex-row gap-4">
             <Button
               size="lg"
