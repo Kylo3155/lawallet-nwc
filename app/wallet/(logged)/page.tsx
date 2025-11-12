@@ -21,19 +21,10 @@ export default function WalletPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(!signer)
   const [copied, setCopied] = useState(false)
-  const [animatedBalance, setAnimatedBalance] = useState(() => {
-    try {
-      const qs = typeof window !== 'undefined' ? window.location.search : ''
-      if (qs) {
-        const params = new URLSearchParams(qs)
-        const fromSats = params.get('animateFromSats')
-        const deltaMsats = fromSats ? Math.max(0, Number(fromSats)) * 1000 : 0
-        const start = Math.max(0, (balance || 0) - deltaMsats)
-        return start
-      }
-    } catch {}
-    return balance
-  })
+  const [animatedBalance, setAnimatedBalance] = useState(balance)
+  // Hold any requested starting delta (in msats) detected from the URL for first animation
+  const startDeltaMsatsRef = useRef<number>(0)
+  const hasAppliedStartDeltaRef = useRef<boolean>(false)
   const addressRef = useRef<HTMLDivElement>(null)
 
   // Fetch cards for the current user
@@ -48,6 +39,20 @@ export default function WalletPage() {
       // Optionally handle error
     }
   }
+
+  // Read animateFromSats from URL on mount and store as msats for first animation only
+  useEffect(() => {
+    try {
+      const qs = typeof window !== 'undefined' ? window.location.search : ''
+      if (!qs) return
+      const params = new URLSearchParams(qs)
+      const fromSats = params.get('animateFromSats')
+      if (fromSats) {
+        const deltaMsats = Math.max(0, Number(fromSats)) * 1000
+        startDeltaMsatsRef.current = isFinite(deltaMsats) ? deltaMsats : 0
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (!apiHydrated) return
@@ -76,7 +81,16 @@ export default function WalletPage() {
     if (balance === undefined || balance === null) return
     let start: number | null = null
     const duration = 800 // ms
-    const startValue = animatedBalance
+
+    // If we have an initial delta from the URL and haven't applied it yet, start animation from (balance - delta)
+    let startValue = animatedBalance
+    if (!hasAppliedStartDeltaRef.current && startDeltaMsatsRef.current > 0) {
+      startValue = Math.max(0, balance - startDeltaMsatsRef.current)
+      setAnimatedBalance(startValue)
+      hasAppliedStartDeltaRef.current = true
+      startDeltaMsatsRef.current = 0
+    }
+
     const endValue = balance
     const diff = endValue - startValue
 
