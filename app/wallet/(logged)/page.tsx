@@ -21,7 +21,19 @@ export default function WalletPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(!signer)
   const [copied, setCopied] = useState(false)
-  const [animatedBalance, setAnimatedBalance] = useState(balance)
+  const [animatedBalance, setAnimatedBalance] = useState(() => {
+    try {
+      const qs = typeof window !== 'undefined' ? window.location.search : ''
+      if (qs) {
+        const params = new URLSearchParams(qs)
+        const fromSats = params.get('animateFromSats')
+        const deltaMsats = fromSats ? Math.max(0, Number(fromSats)) * 1000 : 0
+        const start = Math.max(0, (balance || 0) - deltaMsats)
+        return start
+      }
+    } catch {}
+    return balance
+  })
   const addressRef = useRef<HTMLDivElement>(null)
 
   // Fetch cards for the current user
@@ -87,6 +99,19 @@ export default function WalletPage() {
     return () => {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [balance])
+
+  // Clean URL after using animateFromSats so it doesn't re-trigger on future visits
+  useEffect(() => {
+    try {
+      const qs = typeof window !== 'undefined' ? window.location.search : ''
+      if (!qs) return
+      const params = new URLSearchParams(qs)
+      if (params.has('animateFromSats')) {
+        router.replace('/wallet')
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Wait for hydration before rendering anything
   if (!apiHydrated) {

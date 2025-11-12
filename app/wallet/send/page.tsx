@@ -129,7 +129,11 @@ export default function SendPage() {
           <p className="text-muted-foreground">The invoice has been successfully paid.</p>
           <Button
             size="lg"
-            onClick={() => router.push('/wallet')}
+            onClick={() => {
+              const sats = decodedInvoice?.amount && decodedInvoice.amount > 0 ? decodedInvoice.amount : Number(userAmount) || 0
+              const url = sats > 0 ? `/wallet?animateFromSats=${sats}` : '/wallet'
+              router.push(url)
+            }}
             className="mt-4 w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
