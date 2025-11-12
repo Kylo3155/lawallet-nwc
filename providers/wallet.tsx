@@ -222,6 +222,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const preimage = raw?.preimage || raw?.result?.preimage || raw?.payment_preimage || raw?.payment?.preimage
+    // Refresh balance immediately after a payment attempt (notification may arrive later)
+    try {
+      await refreshBalance()
+    } catch {}
     return { preimage, raw }
   }
 
