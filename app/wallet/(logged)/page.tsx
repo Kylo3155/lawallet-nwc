@@ -186,7 +186,7 @@ export default function WalletPage() {
                   title="Send"
                 >
                   <Send className="h-10 w-10 text-white" />
-                  <span className="sr-only">Send</span>
+                  {/* <span className="sr-only">Send</span> */}
                 </Button>
 
                 <Button
@@ -196,7 +196,7 @@ export default function WalletPage() {
                   title="Scan QR"
                 >
                   <QrCode className="h-10 w-10 text-white" />
-                  <span className="sr-only">Scan QR</span>
+                  {/* <span className="sr-only">Scan QR</span> */}
                 </Button>
 
                 <Button
@@ -206,7 +206,7 @@ export default function WalletPage() {
                   title="Receive"
                 >
                   <Download className="h-10 w-10 text-white" />
-                  <span className="sr-only">Receive</span>
+                  {/* <span className="sr-only">Receive</span> */}
                 </Button>
               </div>
             </>
