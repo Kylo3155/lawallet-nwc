@@ -185,7 +185,7 @@ export default function WalletPage() {
                   onClick={() => router.push('/wallet/send')}
                   title="Send"
                 >
-                  <Send className="h-10 w-10 text-white" />
+                  <Send className="h-8 w-8 text-white" />
                   <span className="sr-only">Send</span>
                 </Button>
 
@@ -195,7 +195,7 @@ export default function WalletPage() {
                   onClick={() => router.push('/wallet/scan')}
                   title="Scan QR"
                 >
-                  <QrCode className="h-10 w-10 text-white" />
+                  <QrCode className="h-8 w-8 text-white" />
                   <span className="sr-only">Scan QR</span>
                 </Button>
 
@@ -205,7 +205,7 @@ export default function WalletPage() {
                   onClick={() => router.push('/wallet/receive')}
                   title="Receive"
                 >
-                  <Download className="h-10 w-10 text-white" />
+                  <Download className="h-8 w-8 text-white" />
                   <span className="sr-only">Receive</span>
                 </Button>
               </div>
