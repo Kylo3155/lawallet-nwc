@@ -16,6 +16,7 @@ import { decode } from 'light-bolt11-decoder'
 interface DecodedInvoice {
   amount: number
   paymentHash?: string
+  recipient?: string
   description?: string
   sections: any[] // Keep the raw sections for amount calculation
 }
@@ -54,10 +55,12 @@ export default function SendPage() {
       const description = decodedAny.sections?.find((s: any) => s.name === 'description')?.value as string | undefined
       const networkSection = decodedAny.sections?.find((s: any) => s.name === 'coin_network') as any
       const network = networkSection?.value as string | undefined
+      const recipient = decodedAny.payeeNodeKey as string | undefined
 
       setDecodedInvoice({
         amount: (amountMsats || 0) / 1000, // Convert msats to sats
         paymentHash,
+        recipient,
         description,
         sections: decodedAny.sections ?? []
       })
@@ -187,6 +190,14 @@ export default function SendPage() {
                     />
                   </div>
                 )}
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Recipient</span>
+                  <span className="font-mono text-xs truncate">
+                    {decodedInvoice.recipient
+                      ? `${decodedInvoice.recipient.substring(0, 20)}...`
+                      : 'Unknown'}
+                  </span>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Payment Hash</span>
                   <span className="font-mono text-xs truncate">
