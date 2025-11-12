@@ -125,7 +125,7 @@ export default function SendPage() {
       <AppViewport>
         <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-4">
           <CheckCircle className="h-16 w-16 text-green-500" />
-          <h2 className="text-2xl font-bold">Payment Sent!</h2>
+          <h2 className="text-2xl font-bold text-white">Payment Sent!</h2>
           <p className="text-muted-foreground">The invoice has been successfully paid.</p>
           <Button
             size="lg"
