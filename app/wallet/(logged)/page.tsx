@@ -107,9 +107,13 @@ export default function WalletPage() {
       if (!qs) return
       const params = new URLSearchParams(qs)
       if (params.has('animateFromSats')) {
-        // Use history.replaceState to avoid a Next.js navigation/remount
-        const url = window.location.pathname
-        window.history.replaceState({}, '', url)
+        // Delay cleanup slightly so the animation has time to start and run
+        const timeout = setTimeout(() => {
+          // Use history.replaceState to avoid a Next.js navigation/remount
+          const url = window.location.pathname
+          window.history.replaceState({}, '', url)
+        }, 1000)
+        return () => clearTimeout(timeout)
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
