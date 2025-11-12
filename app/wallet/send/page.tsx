@@ -22,7 +22,7 @@ interface DecodedInvoice {
 
 export default function SendPage() {
   const router = useRouter()
-  const { payInvoice } = useWallet() // Assuming your hook exposes a `payInvoice` function
+  const { payInvoice, isConnected } = useWallet()
   const [invoice, setInvoice] = useState('')
   const [decodedInvoice, setDecodedInvoice] = useState<DecodedInvoice | null>(null)
   const [userAmount, setUserAmount] = useState('')
@@ -40,17 +40,24 @@ export default function SendPage() {
     }
 
     try {
-      const decoded = decode(invoice)
-      const amountSection = decoded.sections.find(s => s.name === 'amount')
-      const amountMsats = amountSection ? Number(amountSection.value) : 0
-  const paymentHashSection = decoded.sections.find((s: any) => s.name === 'payment_hash') as any
-  const paymentHash = paymentHashSection?.value as string | undefined
+      const normalized = invoice.trim().toLowerCase()
+      const decodedAny: any = decode(normalized)
+      const amountSection = decodedAny.sections?.find((s: any) => s.name === 'amount')
+      const amountMsatsFromSection = amountSection ? Number(amountSection.value) : undefined
+      const amountMsats =
+        amountMsatsFromSection ??
+        (decodedAny?.millisatoshis ? Number(decodedAny.millisatoshis) : undefined) ??
+        (decodedAny?.satoshis ? Number(decodedAny.satoshis) * 1000 : 0)
+
+      const paymentHashSection = decodedAny.sections?.find((s: any) => s.name === 'payment_hash') as any
+      const paymentHash = paymentHashSection?.value as string | undefined
+      const description = decodedAny.sections?.find((s: any) => s.name === 'description')?.value as string | undefined
 
       setDecodedInvoice({
-        amount: amountMsats / 1000, // Convert msats to sats
+        amount: (amountMsats || 0) / 1000, // Convert msats to sats
         paymentHash,
-        description: decoded.sections.find(s => s.name === 'description')?.value,
-        sections: decoded.sections
+        description,
+        sections: decodedAny.sections ?? []
       })
       setError(null)
     } catch (e) {
@@ -135,6 +142,15 @@ export default function SendPage() {
             />
           </div>
 
+          {!isConnected && (
+            <Alert>
+              <AlertTitle>Wallet not connected</AlertTitle>
+              <AlertDescription>
+                Connect your Nostr Wallet (NWC) in Wallet settings to send payments.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {error && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
@@ -194,6 +210,7 @@ export default function SendPage() {
               !decodedInvoice ||
               isSending ||
               !payInvoice ||
+              !isConnected ||
               (decodedInvoice.amount === 0 && (!userAmount || Number(userAmount) <= 0))
             }
             className="w-full"
