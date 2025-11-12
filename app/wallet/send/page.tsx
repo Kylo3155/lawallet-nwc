@@ -112,7 +112,7 @@ export default function SendPage() {
           <Button
             size="lg"
             onClick={() => router.push('/wallet')}
-            className="mt-4 w-full max-w-xs"
+            className="mt-4 w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Wallet
@@ -136,11 +136,11 @@ export default function SendPage() {
         <h2 className="font-semibold">Send Payment</h2>
         <Button variant="ghost" size="icon" onClick={() => router.push('/wallet')}>
           Wallet
-          <Button
-            size="lg"
-            onClick={() => router.push('/wallet')}
-            className="mt-4 w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white"
-          >
+        </Button>
+      </AppNavbar>
+      <AppContent>
+        <div className="container flex flex-col gap-6">
+          <div className="grid w-full items-center gap-2">
             <Label htmlFor="invoice">Lightning Invoice</Label>
             <Input
               id="invoice"
