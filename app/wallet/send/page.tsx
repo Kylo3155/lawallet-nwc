@@ -15,7 +15,7 @@ import { decode } from 'light-bolt11-decoder'
 // The 'Decoded' type from the library is more detailed, but we'll use a simplified version.
 interface DecodedInvoice {
   amount: number
-  payeeNodeKey: string
+  paymentHash?: string
   description?: string
   sections: any[] // Keep the raw sections for amount calculation
 }
@@ -25,6 +25,7 @@ export default function SendPage() {
   const { payInvoice } = useWallet() // Assuming your hook exposes a `payInvoice` function
   const [invoice, setInvoice] = useState('')
   const [decodedInvoice, setDecodedInvoice] = useState<DecodedInvoice | null>(null)
+  const [userAmount, setUserAmount] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -34,6 +35,7 @@ export default function SendPage() {
     if (invoice.trim() === '') {
       setDecodedInvoice(null)
       setError(null)
+      setUserAmount('')
       return
     }
 
@@ -41,10 +43,12 @@ export default function SendPage() {
       const decoded = decode(invoice)
       const amountSection = decoded.sections.find(s => s.name === 'amount')
       const amountMsats = amountSection ? Number(amountSection.value) : 0
+  const paymentHashSection = decoded.sections.find((s: any) => s.name === 'payment_hash') as any
+  const paymentHash = paymentHashSection?.value as string | undefined
 
       setDecodedInvoice({
         amount: amountMsats / 1000, // Convert msats to sats
-        payeeNodeKey: decoded.payeeNodeKey,
+        paymentHash,
         description: decoded.sections.find(s => s.name === 'description')?.value,
         sections: decoded.sections
       })
@@ -62,7 +66,13 @@ export default function SendPage() {
     setError(null)
 
     try {
-      const result = await payInvoice(invoice)
+      const needsAmount = decodedInvoice.amount === 0
+      const amountSats = needsAmount ? Number(userAmount) : undefined
+      if (needsAmount && (!amountSats || amountSats <= 0)) {
+        throw new Error('Please enter a valid amount in sats for this invoice.')
+      }
+
+      const result = await payInvoice(invoice, amountSats)
       if (result && result.preimage) {
         setIsSuccess(true)
       } else {
@@ -143,11 +153,27 @@ export default function SendPage() {
                   <span className="text-muted-foreground">Amount</span>
                   <span className="font-bold text-lg">{formatSats(decodedInvoice.amount)} sats</span>
                 </div>
+                {decodedInvoice.amount === 0 && (
+                  <div className="grid w-full items-center gap-2">
+                    <Label htmlFor="amount">Amount (sats)</Label>
+                    <Input
+                      id="amount"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      placeholder="Enter amount in sats"
+                      value={userAmount}
+                      onChange={(e) => setUserAmount(e.target.value)}
+                      disabled={isSending}
+                      className="text-sm"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Recipient</span>
+                  <span className="text-muted-foreground">Payment Hash</span>
                   <span className="font-mono text-xs truncate">
-                    {decodedInvoice.payeeNodeKey
-                      ? `${decodedInvoice.payeeNodeKey.substring(0, 20)}...`
+                    {decodedInvoice.paymentHash
+                      ? `${decodedInvoice.paymentHash.substring(0, 20)}...`
                       : 'Unknown'}
                   </span>
                 </div>
@@ -164,7 +190,12 @@ export default function SendPage() {
           <Button
             size="lg"
             onClick={handleSend}
-            disabled={!decodedInvoice || isSending || !payInvoice}
+            disabled={
+              !decodedInvoice ||
+              isSending ||
+              !payInvoice ||
+              (decodedInvoice.amount === 0 && (!userAmount || Number(userAmount) <= 0))
+            }
             className="w-full"
           >
             {isSending ? (

@@ -198,11 +198,24 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     logoutApi()
   }
 
+  const payInvoice = async (invoice: string, amountSats?: number) => {
+    if (!nwcObject) throw new Error('Wallet not connected')
+    // amount is expected in millisats by most NWC wallets
+    const params: any = { invoice }
+    if (amountSats && amountSats > 0) {
+      params.amount = amountSats * 1000
+    }
+  const anyNwc = nwcObject as any
+  const result = await anyNwc.payInvoice(params)
+    return result
+  }
+
   const contextValue: WalletContextType = {
     ...walletState,
     getWalletData,
     setLightningAddress,
     setNwcUri,
+    payInvoice,
     logout,
     isConnected,
     isHydrated
