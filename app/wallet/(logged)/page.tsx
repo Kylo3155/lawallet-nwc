@@ -177,34 +177,36 @@ export default function WalletPage() {
                 </div>
               </div>
 
-              {/* Action buttons below the Lightning Address */}
-              <div className="flex gap-3 mt-3">
+              {/* Action buttons below the Lightning Address (centered, squared, dark grey with white icons) */}
+              <div className="flex gap-4 mt-3 justify-center">
                 <Button
-                  size="lg"
-                  className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-white"
+                  size="icon"
+                  className="w-12 h-12 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/send')}
+                  title="Send"
                 >
-                  <Send className="mr-2 h-4 w-4" />
-                  Send
+                  <Send className="h-5 w-5 text-white" />
+                  <span className="sr-only">Send</span>
                 </Button>
 
                 <Button
-                  size="lg"
-                  variant="outline"
-                  className="px-4 py-2 rounded-md"
+                  size="icon"
+                  className="w-12 h-12 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/scan')}
+                  title="Scan QR"
                 >
-                  <QrCode className="mr-2 h-4 w-4" />
-                  Scan QR
+                  <QrCode className="h-5 w-5 text-white" />
+                  <span className="sr-only">Scan QR</span>
                 </Button>
 
                 <Button
-                  size="lg"
-                  className="px-4 py-2 rounded-md bg-nwc-purple hover:bg-nwc-purple/90 text-white"
+                  size="icon"
+                  className="w-12 h-12 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/receive')}
+                  title="Receive"
                 >
-                  <Download className="mr-2 h-4 w-4" />
-                  Receive
+                  <Download className="h-5 w-5 text-white" />
+                  <span className="sr-only">Receive</span>
                 </Button>
               </div>
             </>
