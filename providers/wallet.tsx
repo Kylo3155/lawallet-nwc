@@ -206,7 +206,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       params.amount = amountSats * 1000
     }
     const anyNwc = nwcObject as any
-    const raw = await anyNwc.payInvoice(params)
+    let raw: any
+    // Try common SDK shapes for compatibility across versions
+    try {
+      raw = await anyNwc.payInvoice(params)
+    } catch (e1) {
+      try {
+        raw = await anyNwc.payInvoice(invoice)
+      } catch (e2) {
+        if (typeof anyNwc.request === 'function') {
+          raw = await anyNwc.request('pay_invoice', params)
+        } else {
+          throw e2
+        }
+      }
+    }
     const preimage = raw?.preimage || raw?.result?.preimage || raw?.payment_preimage || raw?.payment?.preimage
     return { preimage, raw }
   }
