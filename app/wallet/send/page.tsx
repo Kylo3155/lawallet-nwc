@@ -146,7 +146,9 @@ export default function SendPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Recipient</span>
                   <span className="font-mono text-xs truncate">
-                    {decodedInvoice.payeeNodeKey.substring(0, 20)}...
+                    {decodedInvoice.payeeNodeKey
+                      ? `${decodedInvoice.payeeNodeKey.substring(0, 20)}...`
+                      : 'Unknown'}
                   </span>
                 </div>
                 {decodedInvoice.description && (
