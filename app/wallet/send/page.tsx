@@ -174,13 +174,13 @@ export default function SendPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Invoice</span>
-                  <span className="font-mono text-xs truncate">
+                  <span className="font-mono text-xs truncate text-white">
                     {invoice.substring(0, 24)}...
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="font-bold text-lg">{formatSats(decodedInvoice.amount || Number(userAmount) || 0)} sats</span>
+                  <span className="font-bold text-lg text-white">{formatSats(decodedInvoice.amount || Number(userAmount) || 0)} sats</span>
                 </div>
                 {decodedInvoice.amount === 0 && (
                   <div className="grid w-full items-center gap-2">
@@ -200,7 +200,7 @@ export default function SendPage() {
                 )}
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Recipient</span>
-                  <span className="font-mono text-xs truncate">
+                  <span className="font-mono text-xs truncate text-white">
                     {decodedInvoice.recipient
                       ? `${decodedInvoice.recipient.substring(0, 20)}...`
                       : 'Unknown'}
@@ -208,7 +208,7 @@ export default function SendPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Payment Hash</span>
-                  <span className="font-mono text-xs truncate">
+                  <span className="font-mono text-xs truncate text-white">
                     {decodedInvoice.paymentHash
                       ? `${decodedInvoice.paymentHash.substring(0, 20)}...`
                       : 'Unknown'}
@@ -217,7 +217,7 @@ export default function SendPage() {
                 {decodedInvoice.description && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Description</span>
-                    <span className="text-sm">{decodedInvoice.description}</span>
+                    <span className="text-sm text-white">{decodedInvoice.description}</span>
                   </div>
                 )}
               </CardContent>
