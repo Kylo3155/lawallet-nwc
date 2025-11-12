@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { ArrowLeft, Send, Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
 import { AppContent, AppNavbar, AppViewport } from '@/components/app'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,6 @@ interface DecodedInvoice {
 
 export default function SendPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { payInvoice, isConnected } = useWallet()
   const [invoice, setInvoice] = useState('')
   const [decodedInvoice, setDecodedInvoice] = useState<DecodedInvoice | null>(null)
@@ -32,16 +31,22 @@ export default function SendPage() {
   const [isSending, setIsSending] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
-  // Prefill invoice from query string: /wallet/send?invoice=...
+  // Prefill invoice from query string without useSearchParams (avoids Suspense requirement)
   useEffect(() => {
-    const qp = searchParams?.get('invoice')
-    if (qp && !invoice) {
-      // Accept common prefixes like 'lightning:' and trim whitespace
-      const cleaned = qp.trim().replace(/^lightning:/i, '')
-      setInvoice(cleaned)
+    try {
+      const qs = typeof window !== 'undefined' ? window.location.search : ''
+      if (!qs) return
+      const params = new URLSearchParams(qs)
+      const qp = params.get('invoice')
+      if (qp && !invoice) {
+        const cleaned = qp.trim().replace(/^lightning:/i, '')
+        setInvoice(cleaned)
+      }
+    } catch {
+      // ignore
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+  }, [])
 
   // This effect will try to decode the invoice whenever it changes
   useEffect(() => {
