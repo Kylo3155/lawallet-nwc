@@ -50,12 +50,11 @@ export default function SendPage() {
         (decodedAny?.millisatoshis ? Number(decodedAny.millisatoshis) : undefined) ??
         (decodedAny?.satoshis ? Number(decodedAny.satoshis) * 1000 : 0)
 
-      const paymentHashSection = decodedAny.sections?.find((s: any) => s.name === 'payment_hash') as any
-      const paymentHash = paymentHashSection?.value as string | undefined
-      const description = decodedAny.sections?.find((s: any) => s.name === 'description')?.value as string | undefined
-      const networkSection = decodedAny.sections?.find((s: any) => s.name === 'coin_network') as any
-      const network = networkSection?.value as string | undefined
-      const recipient = decodedAny.payeeNodeKey as string | undefined
+  const paymentHashSection = decodedAny.sections?.find((s: any) => s.name === 'payment_hash') as any
+  const paymentHash = paymentHashSection?.value as string | undefined
+  const description = decodedAny.sections?.find((s: any) => s.name === 'description')?.value as string | undefined
+  const payeeSection = decodedAny.sections?.find((s: any) => s.name === 'payee_node_key') as any
+  const recipient = (payeeSection?.value as string | undefined) || (decodedAny.payeeNodeKey as string | undefined)
 
       setDecodedInvoice({
         amount: (amountMsats || 0) / 1000, // Convert msats to sats
@@ -173,47 +172,17 @@ export default function SendPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Invoice</span>
-                  <span className="font-mono text-xs truncate text-white">
-                    {invoice.substring(0, 24)}...
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Amount</span>
                   <span className="font-bold text-lg text-white">{formatSats(decodedInvoice.amount || Number(userAmount) || 0)} sats</span>
                 </div>
-                {decodedInvoice.amount === 0 && (
-                  <div className="grid w-full items-center gap-2">
-                    <Label htmlFor="amount">Amount (sats)</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      placeholder="Enter amount in sats"
-                      value={userAmount}
-                      onChange={(e) => setUserAmount(e.target.value)}
-                      disabled={isSending}
-                      className="text-sm"
-                    />
+                {decodedInvoice.recipient && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Recipient</span>
+                    <span className="font-mono text-xs truncate text-white">
+                      {`${decodedInvoice.recipient.substring(0, 20)}...`}
+                    </span>
                   </div>
                 )}
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Recipient</span>
-                  <span className="font-mono text-xs truncate text-white">
-                    {decodedInvoice.recipient
-                      ? `${decodedInvoice.recipient.substring(0, 20)}...`
-                      : 'Unknown'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Payment Hash</span>
-                  <span className="font-mono text-xs truncate text-white">
-                    {decodedInvoice.paymentHash
-                      ? `${decodedInvoice.paymentHash.substring(0, 20)}...`
-                      : 'Unknown'}
-                  </span>
-                </div>
                 {decodedInvoice.description && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Description</span>
@@ -222,6 +191,23 @@ export default function SendPage() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {decodedInvoice?.amount === 0 && (
+            <div className="grid w-full items-center gap-2">
+              <Label htmlFor="amount">Amount (sats)</Label>
+              <Input
+                id="amount"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                placeholder="Enter amount in sats"
+                value={userAmount}
+                onChange={(e) => setUserAmount(e.target.value)}
+                disabled={isSending}
+                className="text-sm"
+              />
+            </div>
           )}
 
           <Button
