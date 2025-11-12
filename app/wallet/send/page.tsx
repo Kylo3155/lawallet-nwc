@@ -125,17 +125,22 @@ export default function SendPage() {
   return (
     <AppViewport>
       <AppNavbar>
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.back()}
+          className="bg-gray-800 hover:bg-gray-700 text-white"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="font-semibold">Send Payment</h2>
         <Button variant="ghost" size="icon" onClick={() => router.push('/wallet')}>
           Wallet
-        </Button>
-      </AppNavbar>
-      <AppContent>
-        <div className="container flex flex-col gap-6">
-          <div className="grid w-full items-center gap-2">
+          <Button
+            size="lg"
+            onClick={() => router.push('/wallet')}
+            className="mt-4 w-full max-w-xs bg-gray-800 hover:bg-gray-700 text-white"
+          >
             <Label htmlFor="invoice">Lightning Invoice</Label>
             <Input
               id="invoice"
