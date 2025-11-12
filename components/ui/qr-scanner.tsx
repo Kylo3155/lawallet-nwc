@@ -10,9 +10,11 @@ interface QRScannerProps {
   onScan: (result: string) => void
   onError?: (error: string) => void
   children?: React.ReactNode
+  autoOpen?: boolean
+  hideTrigger?: boolean
 }
 
-export function QRScanner({ onScan, onError, children }: QRScannerProps) {
+export function QRScanner({ onScan, onError, children, autoOpen, hideTrigger }: QRScannerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isScanning, setIsScanning] = useState(false)
   const [isInitializing, setIsInitializing] = useState(false)
@@ -29,6 +31,15 @@ export function QRScanner({ onScan, onError, children }: QRScannerProps) {
       }
     }
   }, [])
+
+  // Auto-open scanner on mount if requested
+  useEffect(() => {
+    if (!autoOpen) return
+    setIsOpen(true)
+    const t = setTimeout(startScanning, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen])
 
   const checkCameraPermission = async () => {
     try {
@@ -131,21 +142,23 @@ export function QRScanner({ onScan, onError, children }: QRScannerProps) {
 
   return (
     <>
-      {children ? (
-        <div onClick={handleOpen} className="cursor-pointer">
-          {children}
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleOpen}
-          className="flex items-center gap-2"
-        >
-          <Camera className="h-4 w-4" />
-          Scan QR
-        </Button>
+      {!hideTrigger && (
+        children ? (
+          <div onClick={handleOpen} className="cursor-pointer">
+            {children}
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleOpen}
+            className="flex items-center gap-2"
+          >
+            <Camera className="h-4 w-4" />
+            Scan QR
+          </Button>
+        )
       )}
 
       <Dialog open={isOpen} onOpenChange={handleClose}>

@@ -82,10 +82,10 @@ export default function WalletPage() {
     let start: number | null = null
     const duration = 800 // ms
 
-    // If we have an initial delta from the URL and haven't applied it yet, start animation from (balance - delta)
+    // If we have an initial delta from the URL and haven't applied it yet, start animation from (balance + delta)
     let startValue = animatedBalance
     if (!hasAppliedStartDeltaRef.current && startDeltaMsatsRef.current > 0) {
-      startValue = Math.max(0, balance - startDeltaMsatsRef.current)
+      startValue = Math.max(0, balance + startDeltaMsatsRef.current)
       setAnimatedBalance(startValue)
       hasAppliedStartDeltaRef.current = true
       startDeltaMsatsRef.current = 0

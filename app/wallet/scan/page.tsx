@@ -56,18 +56,10 @@ export default function ScanPage() {
             </Alert>
           )}
 
-          <QRScanner onScan={handleScan} onError={setError}>
-            <Button
-              size="lg"
-              className="w-full max-w-md bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center gap-2"
-            >
-              <QrCode className="h-5 w-5" />
-              Open Scanner
-            </Button>
-          </QRScanner>
+          <QRScanner autoOpen hideTrigger onScan={handleScan} onError={setError} />
 
           <p className="text-sm text-muted-foreground">
-            Scan a Lightning invoice QR to continue to the send page.
+            The camera opens automatically. Position the Lightning invoice QR within the frame.
           </p>
         </div>
       </AppContent>
