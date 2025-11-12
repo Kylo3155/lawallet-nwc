@@ -107,7 +107,9 @@ export default function WalletPage() {
       if (!qs) return
       const params = new URLSearchParams(qs)
       if (params.has('animateFromSats')) {
-        router.replace('/wallet')
+        // Use history.replaceState to avoid a Next.js navigation/remount
+        const url = window.location.pathname
+        window.history.replaceState({}, '', url)
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
