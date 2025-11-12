@@ -205,9 +205,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (amountSats && amountSats > 0) {
       params.amount = amountSats * 1000
     }
-  const anyNwc = nwcObject as any
-  const result = await anyNwc.payInvoice(params)
-    return result
+    const anyNwc = nwcObject as any
+    const raw = await anyNwc.payInvoice(params)
+    const preimage = raw?.preimage || raw?.result?.preimage || raw?.payment_preimage || raw?.payment?.preimage
+    return { preimage, raw }
   }
 
   const contextValue: WalletContextType = {

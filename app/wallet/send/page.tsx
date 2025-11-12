@@ -52,6 +52,8 @@ export default function SendPage() {
       const paymentHashSection = decodedAny.sections?.find((s: any) => s.name === 'payment_hash') as any
       const paymentHash = paymentHashSection?.value as string | undefined
       const description = decodedAny.sections?.find((s: any) => s.name === 'description')?.value as string | undefined
+      const networkSection = decodedAny.sections?.find((s: any) => s.name === 'coin_network') as any
+      const network = networkSection?.value as string | undefined
 
       setDecodedInvoice({
         amount: (amountMsats || 0) / 1000, // Convert msats to sats
@@ -167,7 +169,7 @@ export default function SendPage() {
               <CardContent className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Amount</span>
-                  <span className="font-bold text-lg">{formatSats(decodedInvoice.amount)} sats</span>
+                  <span className="font-bold text-lg">{formatSats(decodedInvoice.amount || Number(userAmount) || 0)} sats</span>
                 </div>
                 {decodedInvoice.amount === 0 && (
                   <div className="grid w-full items-center gap-2">
