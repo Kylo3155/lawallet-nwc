@@ -181,7 +181,7 @@ export default function WalletPage() {
               <div className="flex gap-4 mt-3 justify-center">
                 <Button
                   size="icon"
-                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/send')}
                   title="Send"
                 >
@@ -191,7 +191,7 @@ export default function WalletPage() {
 
                 <Button
                   size="icon"
-                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/scan')}
                   title="Scan QR"
                 >
@@ -201,7 +201,7 @@ export default function WalletPage() {
 
                 <Button
                   size="icon"
-                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/receive')}
                   title="Receive"
                 >
