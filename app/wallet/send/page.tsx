@@ -9,19 +9,20 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-// A library to decode BOLT11 invoices will be needed.
-// For now, we'll use a placeholder.
-// import { decode } from 'light-bolt11-decoder'
+import { useWallet } from '@/hooks/use-wallet'
+import { decode } from 'light-bolt11-decoder'
 
-// Placeholder for decoded invoice details
+// The 'Decoded' type from the library is more detailed, but we'll use a simplified version.
 interface DecodedInvoice {
   amount: number
   payeeNodeKey: string
   description?: string
+  sections: any[] // Keep the raw sections for amount calculation
 }
 
 export default function SendPage() {
   const router = useRouter()
+  const { payInvoice } = useWallet() // Assuming your hook exposes a `payInvoice` function
   const [invoice, setInvoice] = useState('')
   const [decodedInvoice, setDecodedInvoice] = useState<DecodedInvoice | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -37,20 +38,15 @@ export default function SendPage() {
     }
 
     try {
-      // ** Placeholder Decoding Logic **
-      // Replace this with a real invoice decoding library
-      if (!invoice.startsWith('lnbc')) {
-        throw new Error('Not a valid Lightning invoice.')
-      }
-      
-      // Simulate decoding
-      const amount = parseInt(invoice.substring(4, 10), 10) || 100000 // Example amount in millisats
-      const payee = '03' + 'a'.repeat(64) // Example payee pubkey
-      
+      const decoded = decode(invoice)
+      const amountSection = decoded.sections.find(s => s.name === 'amount')
+      const amountMsats = amountSection ? Number(amountSection.value) : 0
+
       setDecodedInvoice({
-        amount: amount / 1000, // Convert to sats
-        payeeNodeKey: payee,
-        description: 'Test Invoice Description'
+        amount: amountMsats / 1000, // Convert msats to sats
+        payeeNodeKey: decoded.payeeNodeKey,
+        description: decoded.sections.find(s => s.name === 'description')?.value,
+        sections: decoded.sections
       })
       setError(null)
     } catch (e) {
@@ -60,25 +56,20 @@ export default function SendPage() {
   }, [invoice])
 
   const handleSend = async () => {
-    if (!decodedInvoice) return
+    if (!decodedInvoice || !payInvoice) return
 
     setIsSending(true)
     setError(null)
 
     try {
-      // ** Placeholder Send Logic **
-      // Here you would integrate with your wallet's NWC send function
-      console.log('Sending payment for invoice:', invoice)
-      await new Promise(resolve => setTimeout(resolve, 2000)) // Simulate network delay
-
-      // On success:
-      setIsSuccess(true)
-      setTimeout(() => {
-        router.push('/wallet')
-      }, 3000)
-
-    } catch (e) {
-      setError('Failed to send payment. Please try again.')
+      const result = await payInvoice(invoice)
+      if (result && result.preimage) {
+        setIsSuccess(true)
+      } else {
+        throw new Error('Payment failed. The node returned an error.')
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to send payment. Please try again.')
     } finally {
       setIsSending(false)
     }
@@ -91,10 +82,18 @@ export default function SendPage() {
   if (isSuccess) {
     return (
       <AppViewport>
-        <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+        <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-4">
           <CheckCircle className="h-16 w-16 text-green-500" />
           <h2 className="text-2xl font-bold">Payment Sent!</h2>
-          <p className="text-muted-foreground">Redirecting you back to the wallet...</p>
+          <p className="text-muted-foreground">The invoice has been successfully paid.</p>
+          <Button
+            size="lg"
+            onClick={() => router.push('/wallet')}
+            className="mt-4 w-full max-w-xs"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Wallet
+          </Button>
         </div>
       </AppViewport>
     )
@@ -107,7 +106,9 @@ export default function SendPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="font-semibold">Send Payment</h2>
-        <div className="w-9 h-9" /> {/* Spacer */}
+        <Button variant="ghost" size="icon" onClick={() => router.push('/wallet')}>
+          Wallet
+        </Button>
       </AppNavbar>
       <AppContent>
         <div className="container flex flex-col gap-6">
@@ -161,7 +162,7 @@ export default function SendPage() {
           <Button
             size="lg"
             onClick={handleSend}
-            disabled={!decodedInvoice || isSending}
+            disabled={!decodedInvoice || isSending || !payInvoice}
             className="w-full"
           >
             {isSending ? (
