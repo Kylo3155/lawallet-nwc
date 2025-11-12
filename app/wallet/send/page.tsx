@@ -58,7 +58,7 @@ export default function SendPage() {
     }
 
     try {
-      const normalized = invoice.trim().toLowerCase()
+      const normalized = invoice.trim().replace(/^lightning:/i, '').toLowerCase()
       const decodedAny: any = decode(normalized)
       const amountSection = decodedAny.sections?.find((s: any) => s.name === 'amount')
       const amountMsatsFromSection = amountSection ? Number(amountSection.value) : undefined
@@ -100,7 +100,8 @@ export default function SendPage() {
         throw new Error('Please enter a valid amount in sats for this invoice.')
       }
 
-      const result = await payInvoice(invoice, amountSats)
+  const normalizedToPay = invoice.trim().replace(/^lightning:/i, '').toLowerCase()
+  const result = await payInvoice(normalizedToPay, amountSats)
       // Treat absence of an explicit preimage as success if no exception was thrown.
       if (result && (result.preimage || result.raw)) {
         setIsSuccess(true)
