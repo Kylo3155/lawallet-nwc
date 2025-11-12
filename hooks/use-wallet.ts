@@ -1,14 +1,3 @@
-import { WalletContext } from '@/providers/wallet'
-import { useContext } from 'react'
-
-export function useWallet() {
-  const context = useContext(WalletContext)
-  if (context === undefined) {
-    throw new Error('useWallet must be used within a WalletProvider')
-  }
-  return context
-}
-
 import { create } from 'zustand'
 import { devtools, persist } from 'zustand/middleware'
 import { LaWalletKinds, LaWalletTags } from '@/types/wallet'
@@ -63,7 +52,7 @@ export const useWallet = create<WalletState>()(
               method: 'pay_invoice',
               params: {
                 invoice,
-                amount
+                amount: amount ? amount * 1000 : undefined
               }
             }),
             tags: [['p', walletPubkey]]
