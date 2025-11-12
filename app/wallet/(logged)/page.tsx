@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings, Loader2, BadgeAlert } from 'lucide-react'
+import { Settings, Loader2, BadgeAlert, Send, QrCode, Download } from 'lucide-react'
 
 import { useWallet } from '@/hooks/use-wallet'
 import { useAPI } from '@/providers/api'
@@ -155,28 +155,59 @@ export default function WalletPage() {
       <AppContent>
         <div className="container flex flex-col gap-8">
           {lightningAddress && (
-            <div
-              className="overflow-hidden relative w-full flex flex-col gap-2 border p-4 rounded-xl cursor-pointer"
-              onClick={() => copyToClipboard(lightningAddress)}
-            >
-              <div className="flex gap-2 w-full">
-                <p className="text-sm text-muted-foreground">
-                  Lightning Address
-                </p>
-                {copied && <p className="text-sm text-green-400">Copied</p>}
+            <>
+              <div
+                className="overflow-hidden relative w-full flex flex-col gap-2 border p-4 rounded-xl cursor-pointer"
+                onClick={() => copyToClipboard(lightningAddress)}
+              >
+                <div className="flex gap-2 w-full">
+                  <p className="text-sm text-muted-foreground">Lightning Address</p>
+                  {copied && <p className="text-sm text-green-400">Copied</p>}
+                </div>
+                <div ref={addressRef} className="flex font-bold w-full">
+                  <p
+                    className="text-white w-full text-center"
+                    style={{
+                      fontSize: `${45 - lightningAddress.length * 0.9}px`
+                    }}
+                  >
+                    {lightningAddress}
+                  </p>
+                  {/* <p className="text-muted-foreground">@{PUBLIC_DOMAIN}</p> */}
+                </div>
               </div>
-              <div ref={addressRef} className="flex font-bold w-full">
-                <p
-                  className="text-white w-full text-center"
-                  style={{
-                    fontSize: `${45 - lightningAddress.length * 0.9}px`
-                  }}
+
+              {/* Action buttons below the Lightning Address */}
+              <div className="flex gap-3 mt-3">
+                <Button
+                  size="lg"
+                  className="px-4 py-2 rounded-md bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => router.push('/wallet/send')}
                 >
-                  {lightningAddress}
-                </p>
-                {/* <p className="text-muted-foreground">@{PUBLIC_DOMAIN}</p> */}
+                  <Send className="mr-2 h-4 w-4" />
+                  Send
+                </Button>
+
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-4 py-2 rounded-md"
+                  onClick={() => router.push('/wallet/scan')}
+                >
+                  <QrCode className="mr-2 h-4 w-4" />
+                  Scan QR
+                </Button>
+
+                <Button
+                  size="lg"
+                  className="px-4 py-2 rounded-md bg-nwc-purple hover:bg-nwc-purple/90 text-white"
+                  onClick={() => router.push('/wallet/receive')}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Receive
+                </Button>
               </div>
-            </div>
+            </>
           )}
 
           <div className="flex flex-col gap-2">
