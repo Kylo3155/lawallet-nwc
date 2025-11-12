@@ -181,32 +181,32 @@ export default function WalletPage() {
               <div className="flex gap-4 mt-3 justify-center">
                 <Button
                   size="icon"
-                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/send')}
                   title="Send"
                 >
                   <Send className="h-10 w-10 text-white" />
-                  {/* <span className="sr-only">Send</span> */}
+                  <span className="sr-only">Send</span>
                 </Button>
 
                 <Button
                   size="icon"
-                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/scan')}
                   title="Scan QR"
                 >
                   <QrCode className="h-10 w-10 text-white" />
-                  {/* <span className="sr-only">Scan QR</span> */}
+                  <span className="sr-only">Scan QR</span>
                 </Button>
 
                 <Button
                   size="icon"
-                  className="w-20 h-20 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
+                  className="w-16 h-16 p-0 rounded-lg bg-gray-800 hover:bg-gray-700 text-white flex items-center justify-center"
                   onClick={() => router.push('/wallet/receive')}
                   title="Receive"
                 >
                   <Download className="h-10 w-10 text-white" />
-                  {/* <span className="sr-only">Receive</span> */}
+                  <span className="sr-only">Receive</span>
                 </Button>
               </div>
             </>
