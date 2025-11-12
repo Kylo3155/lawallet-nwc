@@ -133,10 +133,7 @@ export default function SendPage() {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h2 className="font-semibold">Send Payment</h2>
-        <Button variant="ghost" size="icon" onClick={() => router.push('/wallet')}>
-          Wallet
-        </Button>
+        <h2 className="font-semibold text-white">Send Payment</h2>
       </AppNavbar>
       <AppContent>
         <div className="container flex flex-col gap-6">
