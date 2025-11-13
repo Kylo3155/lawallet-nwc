@@ -229,12 +229,34 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return { preimage, raw }
   }
 
+  const createInvoice = async (amountSats: number, description?: string) => {
+    if (!nwcObject) throw new Error('Wallet not connected')
+    if (!amountSats || amountSats <= 0) throw new Error('Amount must be greater than 0')
+    const params: any = { amount: amountSats * 1000 }
+    if (description) params.description = description
+    const anyNwc = nwcObject as any
+    let raw: any
+    try {
+      raw = await anyNwc.makeInvoice(params)
+    } catch (e1) {
+      try {
+        raw = await anyNwc.request('make_invoice', params)
+      } catch (e2) {
+        throw e2
+      }
+    }
+    const invoice = raw?.invoice || raw?.result?.invoice || raw?.paymentRequest || raw?.pr || raw?.bolt11
+    if (!invoice) throw new Error('Failed to create invoice')
+    return { invoice, raw }
+  }
+
   const contextValue: WalletContextType = {
     ...walletState,
     getWalletData,
     setLightningAddress,
     setNwcUri,
     payInvoice,
+    createInvoice,
     logout,
     isConnected,
     isHydrated
