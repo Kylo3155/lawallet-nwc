@@ -21,6 +21,7 @@ export default function ReceivePage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [showForm, setShowForm] = useState(true)
 
   const handleGenerate = async () => {
     if (!createInvoice) return
@@ -32,6 +33,7 @@ export default function ReceivePage() {
       if (!amt || amt <= 0) throw new Error('Enter a valid amount in sats')
       const { invoice: pr } = await createInvoice(amt, description.trim() || undefined)
       setInvoice(pr)
+      setShowForm(false)
     } catch (e: any) {
       setError(e.message || 'Failed to create invoice')
     } finally {
@@ -72,65 +74,67 @@ export default function ReceivePage() {
             </Alert>
           )}
 
-          <Card className="bg-gray-900/50 border-gray-800">
-            <CardHeader>
-              <CardTitle>Create Lightning Invoice</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="grid w-full gap-2">
-                <Label htmlFor="amount">Amount (sats)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  placeholder="Enter amount in sats"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={isGenerating}
-                  className="text-sm"
-                />
-              </div>
-              <div className="grid w-full gap-2">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Input
-                  id="description"
-                  type="text"
-                  placeholder="Description to include"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={isGenerating}
-                  className="text-sm"
-                />
-              </div>
-              <Button
-                size="lg"
-                onClick={handleGenerate}
-                disabled={!isConnected || isGenerating || !amount || Number(amount) <= 0}
-                className="w-full"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Generate Invoice
-                  </>
+          {showForm && (
+            <Card className="bg-gray-900/50 border-gray-800">
+              <CardHeader>
+                <CardTitle>Create Lightning Invoice</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="grid w-full gap-2">
+                  <Label htmlFor="amount">Amount (sats)</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    placeholder="Enter amount in sats"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    disabled={isGenerating}
+                    className="text-sm"
+                  />
+                </div>
+                <div className="grid w-full gap-2">
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Input
+                    id="description"
+                    type="text"
+                    placeholder="Description to include"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    disabled={isGenerating}
+                    className="text-sm"
+                  />
+                </div>
+                <Button
+                  size="lg"
+                  onClick={handleGenerate}
+                  disabled={!isConnected || isGenerating || !amount || Number(amount) <= 0}
+                  className="w-full"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <QrCode className="mr-2 h-4 w-4" />
+                      Generate Invoice
+                    </>
+                  )}
+                </Button>
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-              </Button>
-              {error && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
-          {invoice && (
+          {invoice && !showForm && (
             <Card className="bg-gray-900/50 border-gray-800">
               <CardHeader>
                 <CardTitle>Your Invoice</CardTitle>
@@ -149,6 +153,20 @@ export default function ReceivePage() {
                 >
                   <Copy className="mr-2 h-4 w-4" />
                   {copied ? 'Copied!' : 'Copy Invoice'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Show form again for new invoice; keep last values cleared
+                    setInvoice('')
+                    setAmount('')
+                    setDescription('')
+                    setShowForm(true)
+                    setCopied(false)
+                  }}
+                  className="w-full"
+                >
+                  Generate Another
                 </Button>
               </CardContent>
             </Card>
