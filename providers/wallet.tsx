@@ -715,34 +715,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
     }
     const preimage = raw?.preimage || raw?.result?.preimage || raw?.payment_preimage || raw?.payment?.preimage
-    // Refresh balance immediately after a payment attempt (notification may arrive later)
+    // Refresh balance after payment; outgoing transaction will be detected by delta logic
     try {
-      await refreshBalance()
-    } catch {}
-    // Append an outgoing transaction locally for immediate UI feedback
-    try {
-      let msats = typeof params.amount === 'number' ? params.amount : undefined
-      let paymentHash: string | undefined
-      if (!msats || !paymentHash) {
-        try {
-          const dec: any = decodeBolt11(invoice)
-          const amountSection = dec.sections?.find((s: any) => s.name === 'amount')
-          const fromSection = amountSection ? Number(amountSection.value) : undefined
-          msats = msats || fromSection || (dec?.millisatoshis ? Number(dec.millisatoshis) : dec?.satoshis ? Number(dec.satoshis) * 1000 : undefined)
-          paymentHash = dec?.paymentHash || dec?.payment_hash || dec?.sections?.find((s: any) => s.name === 'payment_hash')?.value
-        } catch {}
-      }
-      if (msats && msats > 0) {
-        const now = Date.now()
-        appendTransaction({
-          id: paymentHash ? String(paymentHash) : `${now}-${Math.random().toString(36).slice(2, 8)}`,
-          type: 'outgoing',
-          amountMsats: msats,
-          createdAt: now
-        })
-        // Mark as recent manual outgoing to suppress delta duplicate
-        manualOutgoRef.current.push({ amountMsats: msats, ts: now })
-      }
+      await checkBalanceDelta()
     } catch {}
     return { preimage, raw }
   }
