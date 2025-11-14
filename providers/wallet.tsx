@@ -29,6 +29,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const hasBaselineRef = useRef(false)
   const postedIdsRef = useRef<Set<string>>(new Set())
   const manualOutgoRef = useRef<{ amountMsats: number; ts: number }[]>([])
+  // Track last processed balance/delta to avoid re-appending identical transactions
+  const lastProcessedBalanceRef = useRef<number | undefined>(undefined)
+  const lastDeltaRef = useRef<number>(0)
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
@@ -406,7 +409,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const delta = haveBaseline && typeof newBalance === 'number' ? newBalance - prev : 0
     const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
     if (debug) console.log('[DELTA_POLL]', { prev, newBalance, delta })
-    if (delta !== 0) {
+    // Only process if there is a non-zero delta and the resulting balance wasn't already processed
+    if (delta !== 0 && newBalance !== lastProcessedBalanceRef.current) {
       const type: 'incoming' | 'outgoing' = delta > 0 ? 'incoming' : 'outgoing'
       const amountMsats = Math.abs(delta)
       // Suppress duplicate outgoing if it matches a recent manual payment
@@ -422,23 +426,40 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           manualOutgoRef.current = manualOutgoRef.current.filter(r => r !== recent)
           if (debug) console.log('[DELTA_SUPPRESS_OUTGOING]', { satsDelta, recent })
         } else {
+          // Additional suppression: if same outgoing amount already appended very recently, skip
+          const duplicateRecent = transactions.find(t => t.type === 'outgoing' && Math.round(t.amountMsats / 1000) === satsDelta && Date.now() - t.createdAt < 10000)
+          if (duplicateRecent) {
+            if (debug) console.log('[DELTA_SKIP_OUT_DUPLICATE_RECENT]', { satsDelta })
+          } else {
+            appendTransaction({
+              id: `${now}-delta-out-${Math.random().toString(36).slice(2,8)}`,
+              type: 'outgoing',
+              amountMsats,
+              createdAt: now
+            })
+            if (debug) console.log('[DELTA_ADD_OUTGOING]', { amountMsats })
+          }
+        }
+      } else {
+        // Suppress duplicate incoming if same amount recorded very recently
+        const now = Date.now()
+        const satsIn = Math.round(amountMsats / 1000)
+        const duplicateIncoming = transactions.find(t => t.type === 'incoming' && Math.round(t.amountMsats / 1000) === satsIn && now - t.createdAt < 10000)
+        if (duplicateIncoming) {
+          if (debug) console.log('[DELTA_SKIP_IN_DUPLICATE_RECENT]', { satsIn })
+        } else {
           appendTransaction({
-            id: `${now}-delta-out-${Math.random().toString(36).slice(2,8)}`,
-            type: 'outgoing',
+            id: `${now}-delta-in-${Math.random().toString(36).slice(2,8)}`,
+            type: 'incoming',
             amountMsats,
             createdAt: now
           })
-          if (debug) console.log('[DELTA_ADD_OUTGOING]', { amountMsats })
+          if (debug) console.log('[DELTA_ADD_INCOMING]', { amountMsats })
         }
-      } else {
-        appendTransaction({
-          id: `${Date.now()}-delta-in-${Math.random().toString(36).slice(2,8)}`,
-          type: 'incoming',
-          amountMsats,
-          createdAt: Date.now()
-        })
-        if (debug) console.log('[DELTA_ADD_INCOMING]', { amountMsats })
       }
+      // Record processed balance & delta to avoid reprocessing identical state
+      lastProcessedBalanceRef.current = newBalance
+      lastDeltaRef.current = delta
     }
     if (typeof newBalance === 'number') {
       prevBalanceRef.current = newBalance
