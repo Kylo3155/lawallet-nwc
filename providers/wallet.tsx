@@ -31,8 +31,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
-      // De-duplicate naive: skip if same type+amount within ~10s window
-      const exists = prev.some(p => p.type === tx.type && p.amountMsats === tx.amountMsats && Math.abs(p.createdAt - tx.createdAt) < 5_000 && (!!p.description === !!tx.description))
+      // De-duplicate only by identical id (safer; direction/amount can legitimately repeat)
+      const exists = prev.some(p => p.id === tx.id)
       const txWithPersistFlag = exists ? tx : { ...tx, _persisted: postedIdsRef.current.has(tx.id) }
       const next = exists ? prev : [txWithPersistFlag, ...prev].slice(0, 200)
       try {
@@ -239,8 +239,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const n = (notification as any).notification ?? (notification as any)
     if (!n || typeof n !== 'object') return null
     // Extract amounts
-    const rawAmount = n.amount ?? n.amount_msat ?? n.amountMsat ?? n.msats
-    const balanceChange = n.balance_change_msat ?? n.balanceChangeMsat ?? n.balance_delta ?? n.delta
+    const rawAmount = n.amount ?? n.amount_msat ?? n.amountMsat ?? n.msats ?? n.value_msat ?? n.valueMsat
+    const credit = n.credit_msat ?? n.creditMsat
+    const debit = n.debit_msat ?? n.debitMsat
+    const balanceChange = n.balance_change_msat ?? n.balanceChangeMsat ?? n.balance_delta ?? n.delta ?? (typeof credit === 'number' ? credit : typeof debit === 'number' ? -debit : undefined)
     const paymentHash = n.payment_hash || n.hash || n.id
     const createdTs = n.timestamp || n.time || n.created_at || n.date
     let createdAt: number
@@ -274,7 +276,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (!type) return null
     const description = n.description || n.memo || n.note || undefined
     return {
-      id: paymentHash ? String(paymentHash) : `${createdAt}-${type}-${msatsAbs}`,
+      id: paymentHash ? String(paymentHash) : `${createdAt}-${type}-${msatsAbs}-${Math.random().toString(36).slice(2,8)}`,
       type,
       amountMsats: msatsAbs,
       createdAt,
@@ -541,17 +543,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Append an outgoing transaction locally for immediate UI feedback
     try {
       let msats = typeof params.amount === 'number' ? params.amount : undefined
-      if (!msats) {
+      let paymentHash: string | undefined
+      if (!msats || !paymentHash) {
         try {
           const dec: any = decodeBolt11(invoice)
           const amountSection = dec.sections?.find((s: any) => s.name === 'amount')
           const fromSection = amountSection ? Number(amountSection.value) : undefined
-          msats = fromSection ?? (dec?.millisatoshis ? Number(dec.millisatoshis) : dec?.satoshis ? Number(dec.satoshis) * 1000 : undefined)
+          msats = msats || fromSection || (dec?.millisatoshis ? Number(dec.millisatoshis) : dec?.satoshis ? Number(dec.satoshis) * 1000 : undefined)
+          paymentHash = dec?.paymentHash || dec?.payment_hash || dec?.sections?.find((s: any) => s.name === 'payment_hash')?.value
         } catch {}
       }
       if (msats && msats > 0) {
         appendTransaction({
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: paymentHash ? String(paymentHash) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           type: 'outgoing',
           amountMsats: msats,
           createdAt: Date.now()
