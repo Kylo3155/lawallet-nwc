@@ -1,7 +1,7 @@
 'use client'
 
 import type React from 'react'
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import type { WalletContextType, WalletState, WalletTransaction } from '@/types/wallet'
 import { nwc } from '@getalby/sdk'
 import { toast } from '@/hooks/use-toast'
@@ -25,6 +25,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
   const { userId, get, put, logout: logoutApi } = useAPI()
+  const prevBalanceRef = useRef<number | undefined>(undefined)
+  const hasBaselineRef = useRef(false)
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
@@ -50,40 +52,72 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const refreshBalance = async (notification?: any) => {
     console.log(notification)
 
+    let recognizedByNotification = false
     if (notification) {
       const n = (notification as any).notification ?? (notification as any)
       const typeRaw = n?.type as string | undefined
       const amountAny = n?.amount ?? n?.amount_msat ?? n?.amountMsat ?? n?.msats
-      if (typeof amountAny === 'number' && (typeRaw === 'incoming' || typeRaw === 'outgoing')) {
-        const tx: WalletTransaction = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          type: typeRaw === 'incoming' ? 'incoming' : 'outgoing',
-          amountMsats: amountAny,
-          createdAt: Date.now()
+      if (typeof amountAny === 'number') {
+        // Normalize type using multiple possible fields
+        let normalizedType: 'incoming' | 'outgoing' | undefined
+        if (typeRaw === 'incoming' || typeRaw === 'outgoing') {
+          normalizedType = typeRaw
+        } else if (n?.direction === 'in') {
+          normalizedType = 'incoming'
+        } else if (n?.direction === 'out') {
+          normalizedType = 'outgoing'
+        } else if (typeof n?.amount === 'number') {
+          normalizedType = n.amount > 0 ? 'incoming' : 'outgoing'
         }
-        appendTransaction(tx)
-        toast({
-          title: tx.type === 'incoming' ? 'Received' : 'Paid',
-          variant: tx.type === 'incoming' ? 'default' : 'destructive',
-          description: (
-            <span className="flex items-center gap-2">
-              {tx.type === 'incoming' ? (
-                <ArrowDownLeft className="w-4 h-4 text-green-600" />
-              ) : (
-                <ArrowUpRight className="w-4 h-4 text-red-600" />
-              )}
-              {tx.type === 'incoming' ? '+' : '-'}
-              {Math.round(tx.amountMsats / 1000)} sats
-            </span>
-          )
-        })
+
+        if (normalizedType) {
+          recognizedByNotification = true
+          const msats = Math.abs(Number(amountAny))
+          const tx: WalletTransaction = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: normalizedType,
+            amountMsats: msats,
+            createdAt: Date.now()
+          }
+          appendTransaction(tx)
+          toast({
+            title: tx.type === 'incoming' ? 'Received' : 'Paid',
+            variant: tx.type === 'incoming' ? 'default' : 'destructive',
+            description: (
+              <span className="flex items-center gap-2">
+                {tx.type === 'incoming' ? (
+                  <ArrowDownLeft className="w-4 h-4 text-green-600" />
+                ) : (
+                  <ArrowUpRight className="w-4 h-4 text-red-600" />
+                )}
+                {tx.type === 'incoming' ? '+' : '-'}
+                {Math.round(tx.amountMsats / 1000)} sats
+              </span>
+            )
+          })
+        }
       }
     }
 
     try {
       const balance = await nwcObject?.getBalance()
       console.info('balance:', balance)
-      setWalletState(prev => ({ ...prev, balance: balance?.balance ?? 0 }))
+      const newBalance = balance?.balance ?? 0
+      // Infer incoming tx by positive delta if no recognizable notification
+      if (hasBaselineRef.current && prevBalanceRef.current !== undefined && !recognizedByNotification) {
+        const delta = newBalance - prevBalanceRef.current
+        if (delta > 0) {
+          appendTransaction({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: 'incoming',
+            amountMsats: delta,
+            createdAt: Date.now()
+          })
+        }
+      }
+      prevBalanceRef.current = newBalance
+      hasBaselineRef.current = true
+      setWalletState(prev => ({ ...prev, balance: newBalance }))
       setIsConnected(true)
     } catch {
       setIsConnected(false)
