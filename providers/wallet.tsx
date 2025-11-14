@@ -28,6 +28,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const prevBalanceRef = useRef<number | undefined>(undefined)
   const hasBaselineRef = useRef(false)
   const postedIdsRef = useRef<Set<string>>(new Set())
+  const manualOutgoRef = useRef<{ amountMsats: number; ts: number }[]>([])
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
@@ -391,6 +392,57 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Pure delta-based detection (ignores notification content)
+  const checkBalanceDelta = async () => {
+    let newBalance: number | undefined
+    try {
+      const balance = await nwcObject?.getBalance()
+      newBalance = balance?.balance ?? 0
+    } catch {
+      return
+    }
+    const prev = prevBalanceRef.current
+    const haveBaseline = hasBaselineRef.current && typeof prev === 'number'
+    const delta = haveBaseline && typeof newBalance === 'number' ? newBalance - prev : 0
+    if (delta !== 0) {
+      const type: 'incoming' | 'outgoing' = delta > 0 ? 'incoming' : 'outgoing'
+      const amountMsats = Math.abs(delta)
+      // Suppress duplicate outgoing if it matches a recent manual payment
+      if (type === 'outgoing') {
+        const now = Date.now()
+        const toleranceSats = 5
+        const satsDelta = Math.round(amountMsats / 1000)
+        const recent = manualOutgoRef.current.find(
+          r => now - r.ts < 15000 && Math.abs(Math.round(r.amountMsats / 1000) - satsDelta) <= toleranceSats
+        )
+        if (recent) {
+          // Consume the marker and skip appending duplicate
+          manualOutgoRef.current = manualOutgoRef.current.filter(r => r !== recent)
+        } else {
+          appendTransaction({
+            id: `${now}-delta-out-${Math.random().toString(36).slice(2,8)}`,
+            type: 'outgoing',
+            amountMsats,
+            createdAt: now
+          })
+        }
+      } else {
+        appendTransaction({
+          id: `${Date.now()}-delta-in-${Math.random().toString(36).slice(2,8)}`,
+          type: 'incoming',
+          amountMsats,
+          createdAt: Date.now()
+        })
+      }
+    }
+    if (typeof newBalance === 'number') {
+      prevBalanceRef.current = newBalance
+      hasBaselineRef.current = true
+      setWalletState(prev => ({ ...prev, balance: newBalance }))
+      setIsConnected(true)
+    }
+  }
+
   useEffect(() => {
     if (!walletState.nwcUri) {
       setNwcObject(null)
@@ -408,22 +460,25 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (nwcObject) {
-      nwcObject.subscribeNotifications((evt: any) => {
-        const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
-        if (debug) {
-          try {
-            console.log('[NWC_NOTIFICATION]', JSON.stringify(evt, null, 2))
-          } catch {
-            console.log('[NWC_NOTIFICATION]', evt)
-          }
-        }
-        refreshBalance(evt)
+      // Use notifications only as a trigger; ignore content and rely on balance delta
+      nwcObject.subscribeNotifications(() => {
+        checkBalanceDelta()
       })
       ;(async () => {
-        await refreshBalance()
+        await checkBalanceDelta()
         await fetchTransactions()
       })()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nwcObject])
+
+  // Poll balance periodically to detect deltas when notifications are missing
+  useEffect(() => {
+    if (!nwcObject) return
+    const id = setInterval(() => {
+      checkBalanceDelta()
+    }, 4000)
+    return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nwcObject])
 
@@ -620,12 +675,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
       if (msats && msats > 0) {
+        const now = Date.now()
         appendTransaction({
-          id: paymentHash ? String(paymentHash) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: paymentHash ? String(paymentHash) : `${now}-${Math.random().toString(36).slice(2, 8)}`,
           type: 'outgoing',
           amountMsats: msats,
-          createdAt: Date.now()
+          createdAt: now
         })
+        // Mark as recent manual outgoing to suppress delta duplicate
+        manualOutgoRef.current.push({ amountMsats: msats, ts: now })
       }
     } catch {}
     return { preimage, raw }
