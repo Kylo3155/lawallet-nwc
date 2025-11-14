@@ -392,7 +392,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // Pure delta-based detection (ignores notification content)
+  // Pure delta-based detection (ignores notification content). Logs for debugging.
   const checkBalanceDelta = async () => {
     let newBalance: number | undefined
     try {
@@ -404,6 +404,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const prev = prevBalanceRef.current
     const haveBaseline = hasBaselineRef.current && typeof prev === 'number'
     const delta = haveBaseline && typeof newBalance === 'number' ? newBalance - prev : 0
+    const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
+    if (debug) console.log('[DELTA_POLL]', { prev, newBalance, delta })
     if (delta !== 0) {
       const type: 'incoming' | 'outgoing' = delta > 0 ? 'incoming' : 'outgoing'
       const amountMsats = Math.abs(delta)
@@ -418,6 +420,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (recent) {
           // Consume the marker and skip appending duplicate
           manualOutgoRef.current = manualOutgoRef.current.filter(r => r !== recent)
+          if (debug) console.log('[DELTA_SUPPRESS_OUTGOING]', { satsDelta, recent })
         } else {
           appendTransaction({
             id: `${now}-delta-out-${Math.random().toString(36).slice(2,8)}`,
@@ -425,6 +428,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             amountMsats,
             createdAt: now
           })
+          if (debug) console.log('[DELTA_ADD_OUTGOING]', { amountMsats })
         }
       } else {
         appendTransaction({
@@ -433,6 +437,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           amountMsats,
           createdAt: Date.now()
         })
+        if (debug) console.log('[DELTA_ADD_INCOMING]', { amountMsats })
       }
     }
     if (typeof newBalance === 'number') {
