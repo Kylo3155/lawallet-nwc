@@ -27,12 +27,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { userId, get, post, put, logout: logoutApi } = useAPI()
   const prevBalanceRef = useRef<number | undefined>(undefined)
   const hasBaselineRef = useRef(false)
+  const postedIdsRef = useRef<Set<string>>(new Set())
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
       // De-duplicate naive: skip if same type+amount within ~10s window
       const exists = prev.some(p => p.type === tx.type && p.amountMsats === tx.amountMsats && Math.abs(p.createdAt - tx.createdAt) < 10_000)
-      const next = exists ? prev : [tx, ...prev].slice(0, 200)
+      const txWithPersistFlag = exists ? tx : { ...tx, _persisted: postedIdsRef.current.has(tx.id) }
+      const next = exists ? prev : [txWithPersistFlag, ...prev].slice(0, 200)
       try {
         const existingData = localStorage.getItem('wallet')
         let walletData: any = {}
@@ -52,14 +54,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Best-effort server persistence (requires authenticated API)
     ;(async () => {
       try {
-        if (userId) {
-          await post('/api/transactions', {
+        if (userId && !postedIdsRef.current.has(tx.id)) {
+          const res = await post('/api/transactions', {
             type: tx.type,
             amountMsats: tx.amountMsats,
             description: tx.description,
             createdAt: tx.createdAt,
             externalId: tx.id
           })
+          if (!res.error) {
+            postedIdsRef.current.add(tx.id)
+            setTransactions(prev => prev.map(p => p.id === tx.id ? { ...p, _persisted: true } : p))
+          }
         }
       } catch {}
     })()
@@ -131,7 +137,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               description: t.description || undefined,
               createdAt: typeof t.createdAt === 'string' || t.createdAt instanceof Date
                 ? new Date(t.createdAt).getTime()
-                : Number(t.createdAt) || Date.now()
+                : Number(t.createdAt) || Date.now(),
+              _persisted: true
             }))
             .filter(
               (t: WalletTransaction) =>
@@ -154,6 +161,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               } catch {}
               return merged
             })
+            // Register server-persisted IDs
+            for (const tx of normalized) postedIdsRef.current.add(tx.id)
           }
         }
       }
@@ -184,7 +193,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             // merge & dedupe by id
             const map = new Map<string, WalletTransaction>()
             for (const tx of [...norm, ...prev]) {
-              map.set(tx.id, tx)
+              // if we already marked persisted, keep that flag
+              const existing = map.get(tx.id)
+              map.set(tx.id, existing ? { ...existing, ...tx } : tx)
             }
             const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt).slice(0, 200)
             try {
@@ -194,6 +205,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             } catch {}
             return merged
           })
+          // Persist any wallet-listed transactions not yet posted (particularly incoming)
+          ;(async () => {
+            if (userId) {
+              for (const tx of norm) {
+                if (!postedIdsRef.current.has(tx.id)) {
+                  try {
+                    const res = await post('/api/transactions', {
+                      type: tx.type,
+                      amountMsats: tx.amountMsats,
+                      description: tx.description,
+                      createdAt: tx.createdAt,
+                      externalId: tx.id
+                    })
+                    if (!res.error) {
+                      postedIdsRef.current.add(tx.id)
+                      setTransactions(prev => prev.map(p => p.id === tx.id ? { ...p, _persisted: true } : p))
+                    }
+                  } catch {}
+                }
+              }
+            }
+          })()
         }
       }
     } catch {
@@ -307,6 +340,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (userId) {
       fetchTransactions()
+      // Backfill any existing local transactions not yet persisted (e.g., incoming before login)
+      ;(async () => {
+        for (const tx of transactions) {
+          if (!postedIdsRef.current.has(tx.id)) {
+            try {
+              const res = await post('/api/transactions', {
+                type: tx.type,
+                amountMsats: tx.amountMsats,
+                description: tx.description,
+                createdAt: tx.createdAt,
+                externalId: tx.id
+              })
+              if (!res.error) {
+                postedIdsRef.current.add(tx.id)
+                setTransactions(prev => prev.map(p => p.id === tx.id ? { ...p, _persisted: true } : p))
+              }
+            } catch {}
+          }
+        }
+      })()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])

@@ -14,6 +14,8 @@ export interface WalletTransaction {
   amountMsats: number
   createdAt: number
   description?: string
+  // Internal client-side flag (not persisted server-side) to avoid re-posting
+  _persisted?: boolean
 }
 
 export interface WalletContextType extends WalletState {
