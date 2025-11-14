@@ -37,6 +37,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Recently processed delta signatures with TTL
   const recentDeltaSigRef = useRef<Map<string, number>>(new Map())
 
+  
   // Keep transactionsRef in sync
   useEffect(() => {
     transactionsRef.current = transactions
