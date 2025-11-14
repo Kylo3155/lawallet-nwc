@@ -25,6 +25,7 @@ export interface WalletContextType extends WalletState {
   payInvoice: (invoice: string, amountSats?: number) => Promise<any>
   createInvoice: (amountSats: number, description?: string) => Promise<{ invoice: string; raw: any }>
   transactions: WalletTransaction[]
+  clearTransactions: () => Promise<void>
   logout: () => void
   isConnected: boolean
   isHydrated: boolean

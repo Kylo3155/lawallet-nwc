@@ -89,3 +89,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { pubkey } = await validateNip98(request)
+    const user = await prisma.user.findUnique({ where: { pubkey } })
+    if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 })
+
+    await prisma.walletTransaction.deleteMany({ where: { userId: user.id } })
+    return NextResponse.json({ ok: true })
+  } catch (e) {
+    console.error('DELETE /api/transactions', e)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+}

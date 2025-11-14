@@ -4,11 +4,11 @@ import { useRouter } from 'next/navigation'
 import { AppViewport, AppNavbar, AppContent } from '@/components/app'
 import { Button } from '@/components/ui/button'
 import { useWallet } from '@/hooks/use-wallet'
-import { ArrowLeft, ArrowDownLeft, ArrowUpRight } from 'lucide-react'
+import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Trash2 } from 'lucide-react'
 
 export default function TransactionsPage() {
   const router = useRouter()
-  const { transactions } = useWallet()
+  const { transactions, clearTransactions } = useWallet()
 
   const formatRelative = (ts: number) => {
     const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -39,7 +39,19 @@ export default function TransactionsPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="font-semibold text-white">Transactions</h2>
-        <div />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="bg-red-600/20 hover:bg-red-600/30 text-red-400"
+          title="Clear transaction history"
+          onClick={() => {
+            if (confirm('Clear all local & server transactions? This cannot be undone.')) {
+              clearTransactions()
+            }
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </AppNavbar>
       <AppContent>
         <div className="container flex flex-col gap-4">

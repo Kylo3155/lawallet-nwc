@@ -771,6 +771,24 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     payInvoice,
     createInvoice,
     transactions,
+    clearTransactions: async () => {
+      try {
+        // Attempt server-side purge first if authenticated
+        if (userId) {
+          await fetch('/api/transactions', { method: 'DELETE' })
+        }
+      } catch {}
+      // Clear local state & storage
+      setTransactions([])
+      postedIdsRef.current.clear()
+      try {
+        const existingData = localStorage.getItem('wallet')
+        if (existingData) {
+          const parsed = JSON.parse(existingData)
+          localStorage.setItem('wallet', JSON.stringify({ ...parsed, transactions: [] }))
+        }
+      } catch {}
+    },
     logout,
     isConnected,
     isHydrated
