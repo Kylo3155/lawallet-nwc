@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200)
 
-    const txs = await (prisma as any).walletTransaction.findMany({
+    const txs = await prisma.walletTransaction.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: limit
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     // Upsert by externalId when provided to avoid duplicates
     let tx
     if (externalId) {
-      tx = await (prisma as any).walletTransaction.upsert({
+      tx = await prisma.walletTransaction.upsert({
         where: { externalId },
         update: {
           type,
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
         }
       })
     } else {
-      tx = await (prisma as any).walletTransaction.create({
+      tx = await prisma.walletTransaction.create({
         data: {
           userId: user.id,
           type,

@@ -10,17 +10,18 @@ datasource db {
 }
 
 model User {
-  id               String            @id
-  pubkey           String            @unique
-  createdAt        DateTime          @default(now())
-  nwc              String?
-  cardDesigns      CardDesign[]
-  ntag424s         Ntag424[]
-  lightningAddress LightningAddress?
-  cards            Card[]
-  albySubAccount   AlbySubAccount?
-  albyEnabled      Boolean           @default(false)
-  role             String?           @default("user")
+  id                 String              @id
+  pubkey             String              @unique
+  createdAt          DateTime            @default(now())
+  nwc                String?
+  cardDesigns        CardDesign[]
+  ntag424s           Ntag424[]
+  lightningAddress   LightningAddress?
+  cards              Card[]
+  albySubAccount     AlbySubAccount?
+  albyEnabled        Boolean             @default(false)
+  role               String?             @default("user")
+  walletTransactions WalletTransaction[]
 }
 
 model CardDesign {
@@ -87,8 +88,8 @@ model AlbySubAccount {
 }
 
 model Settings {
-  name String @id
-  value String
+  name      String   @id
+  value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
