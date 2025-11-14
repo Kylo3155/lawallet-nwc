@@ -7,6 +7,7 @@ import { nwc } from '@getalby/sdk'
 import { toast } from '@/hooks/use-toast'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
 import { useAPI } from '@/providers/api'
+import { decode as decodeBolt11 } from 'light-bolt11-decoder'
 
 export const WalletContext = createContext<WalletContextType | undefined>(
   undefined
@@ -25,51 +26,58 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false)
   const { userId, get, put, logout: logoutApi } = useAPI()
 
+  const appendTransaction = (tx: WalletTransaction) => {
+    setTransactions(prev => {
+      const next = [tx, ...prev].slice(0, 200)
+      try {
+        const existingData = localStorage.getItem('wallet')
+        let walletData: any = {}
+        if (existingData) {
+          walletData = JSON.parse(existingData)
+        }
+        localStorage.setItem(
+          'wallet',
+          JSON.stringify({
+            ...walletData,
+            transactions: next
+          })
+        )
+      } catch {}
+      return next
+    })
+  }
+
   const refreshBalance = async (notification?: any) => {
     console.log(notification)
 
     if (notification) {
-      const { type, amount } = notification.notification
-      // Append to transactions log
-      try {
+      const n = (notification as any).notification ?? (notification as any)
+      const typeRaw = n?.type as string | undefined
+      const amountAny = n?.amount ?? n?.amount_msat ?? n?.amountMsat ?? n?.msats
+      if (typeof amountAny === 'number' && (typeRaw === 'incoming' || typeRaw === 'outgoing')) {
         const tx: WalletTransaction = {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          type: type === 'incoming' ? 'incoming' : 'outgoing',
-          amountMsats: Number(amount) || 0,
+          type: typeRaw === 'incoming' ? 'incoming' : 'outgoing',
+          amountMsats: amountAny,
           createdAt: Date.now()
         }
-        setTransactions(prev => {
-          const next = [tx, ...prev].slice(0, 200)
-          // persist immediately
-          try {
-            const existingData = localStorage.getItem('wallet')
-            let walletData: any = {}
-            if (existingData) {
-              walletData = JSON.parse(existingData)
-            }
-            localStorage.setItem('wallet', JSON.stringify({
-              ...walletData,
-              transactions: next
-            }))
-          } catch {}
-          return next
+        appendTransaction(tx)
+        toast({
+          title: tx.type === 'incoming' ? 'Received' : 'Paid',
+          variant: tx.type === 'incoming' ? 'default' : 'destructive',
+          description: (
+            <span className="flex items-center gap-2">
+              {tx.type === 'incoming' ? (
+                <ArrowDownLeft className="w-4 h-4 text-green-600" />
+              ) : (
+                <ArrowUpRight className="w-4 h-4 text-red-600" />
+              )}
+              {tx.type === 'incoming' ? '+' : '-'}
+              {Math.round(tx.amountMsats / 1000)} sats
+            </span>
+          )
         })
-      } catch {}
-      toast({
-        title: type === 'incoming' ? 'Received' : 'Paid',
-        variant: type === 'incoming' ? 'default' : 'destructive',
-        description: (
-          <span className="flex items-center gap-2">
-            {type === 'incoming' ? (
-              <ArrowDownLeft className="w-4 h-4 text-green-600" />
-            ) : (
-              <ArrowUpRight className="w-4 h-4 text-red-600" />
-            )}
-            {type === 'incoming' ? '+' : '-'}
-            {amount / 1000} sats
-          </span>
-        )
-      })
+      }
     }
 
     try {
@@ -255,6 +263,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Refresh balance immediately after a payment attempt (notification may arrive later)
     try {
       await refreshBalance()
+    } catch {}
+    // Append an outgoing transaction locally for immediate UI feedback
+    try {
+      let msats = typeof params.amount === 'number' ? params.amount : undefined
+      if (!msats) {
+        try {
+          const dec: any = decodeBolt11(invoice)
+          const amountSection = dec.sections?.find((s: any) => s.name === 'amount')
+          const fromSection = amountSection ? Number(amountSection.value) : undefined
+          msats = fromSection ?? (dec?.millisatoshis ? Number(dec.millisatoshis) : dec?.satoshis ? Number(dec.satoshis) * 1000 : undefined)
+        } catch {}
+      }
+      if (msats && msats > 0) {
+        appendTransaction({
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: 'outgoing',
+          amountMsats: msats,
+          createdAt: Date.now()
+        })
+      }
     } catch {}
     return { preimage, raw }
   }
