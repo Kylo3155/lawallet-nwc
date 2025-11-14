@@ -29,6 +29,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const hasBaselineRef = useRef(false)
   const postedIdsRef = useRef<Set<string>>(new Set())
   const manualOutgoRef = useRef<{ amountMsats: number; ts: number }[]>([])
+  const clearedRef = useRef<number>(0)
   // Latest transactions snapshot for use inside timers/callbacks
   const transactionsRef = useRef<WalletTransaction[]>([])
   // Track last processed balance/delta to avoid re-appending identical transactions
@@ -133,6 +134,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }
 
   const fetchTransactions = async () => {
+    // If we just cleared transactions, skip fetching for a short debounce window to avoid repopulating before server DELETE finishes
+    if (clearedRef.current && Date.now() - clearedRef.current < 5000) {
+      return
+    }
     // 1) Try server-side history first (cross-device, deduped)
     try {
       if (userId) {
@@ -772,12 +777,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     createInvoice,
     transactions,
     clearTransactions: async () => {
-      try {
-        // Attempt server-side purge first if authenticated
-        if (userId) {
-          await fetch('/api/transactions', { method: 'DELETE' })
+      const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
+      clearedRef.current = Date.now()
+      // Attempt server-side purge first if authenticated
+      if (userId) {
+        try {
+          const { delete: del } = useAPI()
+          const res = await del('/api/transactions')
+          if (debug) console.log('[CLEAR_SERVER]', res.status, res.error)
+        } catch (e) {
+          if (debug) console.log('[CLEAR_SERVER_ERROR]', e)
         }
-      } catch {}
+      }
       // Clear local state & storage
       setTransactions([])
       postedIdsRef.current.clear()
