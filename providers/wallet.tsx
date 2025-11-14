@@ -24,7 +24,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [nwcObject, setNwcObject] = useState<nwc.NWCClient | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
-  const { userId, get, post, put, logout: logoutApi } = useAPI()
+  const { userId, get, post, put, delete: del, logout: logoutApi } = useAPI()
   const prevBalanceRef = useRef<number | undefined>(undefined)
   const hasBaselineRef = useRef(false)
   const postedIdsRef = useRef<Set<string>>(new Set())
@@ -782,7 +782,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Attempt server-side purge first if authenticated
       if (userId) {
         try {
-          const { delete: del } = useAPI()
           const res = await del('/api/transactions')
           if (debug) console.log('[CLEAR_SERVER]', res.status, res.error)
         } catch (e) {
