@@ -15,7 +15,7 @@ export default function TransactionsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     try {
-      setShowDelete(localStorage.getItem('walletDebug') === 'false')
+      setShowDelete(localStorage.getItem('walletDebug') != 'true')
     } catch {}
   }, [])
 
