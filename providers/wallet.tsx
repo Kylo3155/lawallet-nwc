@@ -289,12 +289,52 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }
 
   const refreshBalance = async (notification?: any) => {
-    console.log(notification)
+    // Step 1: Fetch current balance early to compute reliable delta.
+    let newBalance: number | undefined
+    try {
+      const balance = await nwcObject?.getBalance()
+      newBalance = balance?.balance ?? 0
+    } catch (e) {
+      console.warn('Failed to fetch balance before classification', e)
+    }
 
-    let recognizedByNotification = false
-    const parsedTx = classifyNotification(notification)
+    const prevBalance = prevBalanceRef.current
+    const haveBaseline = hasBaselineRef.current && typeof prevBalance === 'number'
+    const delta = haveBaseline && typeof newBalance === 'number' ? newBalance - prevBalance : 0
+
+    // Step 2: Classify notification into a candidate transaction.
+    const parsedTxOriginal = classifyNotification(notification)
+    let parsedTx = parsedTxOriginal ? { ...parsedTxOriginal } : null
+
+    // Step 3: Override direction using balance delta if it contradicts classification.
+    if (parsedTx && haveBaseline && delta !== 0) {
+      const deltaDirection = delta > 0 ? 'incoming' : 'outgoing'
+      // If classification type differs from delta direction AND amounts are similar, trust delta.
+      if (parsedTx.type !== deltaDirection) {
+        const satsTx = Math.round(parsedTx.amountMsats / 1000)
+        const satsDelta = Math.abs(Math.round(delta / 1000))
+        if (Math.abs(satsTx - satsDelta) <= 2) { // tolerance of 2 sats for rounding
+          parsedTx.type = deltaDirection
+          // Ensure ID remains unique with new direction suffix.
+          if (parsedTx.id.includes('-incoming') || parsedTx.id.includes('-outgoing')) {
+            parsedTx.id = parsedTx.id.replace(/-(incoming|outgoing)$/i, `-${deltaDirection}`)
+          }
+        }
+      }
+    }
+
+    // Step 4: If no notification recognized but delta positive, create inferred incoming.
+    if (!parsedTx && haveBaseline && delta > 0) {
+      parsedTx = {
+        id: `${Date.now()}-delta-${Math.random().toString(36).slice(2,8)}`,
+        type: 'incoming',
+        amountMsats: delta,
+        createdAt: Date.now()
+      }
+    }
+
+    // Step 5: Append and toast if we have a parsed/inferred transaction.
     if (parsedTx) {
-      recognizedByNotification = true
       appendTransaction(parsedTx)
       toast({
         title: parsedTx.type === 'incoming' ? 'Received' : 'Paid',
@@ -313,28 +353,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       })
     }
 
-    try {
-      const balance = await nwcObject?.getBalance()
-      console.info('balance:', balance)
-      const newBalance = balance?.balance ?? 0
-      // Infer incoming tx by positive delta if no recognizable notification
-      if (hasBaselineRef.current && prevBalanceRef.current !== undefined && !recognizedByNotification) {
-        const delta = newBalance - prevBalanceRef.current
-        if (delta > 0) {
-          appendTransaction({
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            type: 'incoming',
-            amountMsats: delta,
-            createdAt: Date.now()
-          })
-        }
-      }
+    // Step 6: Update balance state & baseline.
+    if (typeof newBalance === 'number') {
       prevBalanceRef.current = newBalance
       hasBaselineRef.current = true
       setWalletState(prev => ({ ...prev, balance: newBalance }))
       setIsConnected(true)
-    } catch {
-      setIsConnected(false)
     }
   }
 
