@@ -30,7 +30,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
-      const next = [tx, ...prev].slice(0, 200)
+      // De-duplicate naive: skip if same type+amount within ~10s window
+      const exists = prev.some(p => p.type === tx.type && p.amountMsats === tx.amountMsats && Math.abs(p.createdAt - tx.createdAt) < 10_000)
+      const next = exists ? prev : [tx, ...prev].slice(0, 200)
       try {
         const existingData = localStorage.getItem('wallet')
         let walletData: any = {}
@@ -47,6 +49,95 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       return next
     })
+  }
+
+  const normalizeTxArray = (arr: any[]): WalletTransaction[] => {
+    const out: WalletTransaction[] = []
+    for (const t of arr) {
+      try {
+        // amount detection (prefer msats fields)
+        let msats: number | undefined = undefined
+        if (typeof t.amount_msat === 'number') msats = t.amount_msat
+        else if (typeof t.amountMsat === 'number') msats = t.amountMsat
+        else if (typeof t.msats === 'number') msats = t.msats
+        else if (typeof t.amount === 'number') {
+          // Some wallets send signed msats in amount
+          msats = Math.abs(t.amount)
+        }
+        if (msats === undefined) continue
+        // type detection
+        let type: 'incoming' | 'outgoing' | undefined
+        if (t.type === 'incoming' || t.type === 'outgoing') type = t.type
+        else if (t.direction === 'in') type = 'incoming'
+        else if (t.direction === 'out') type = 'outgoing'
+        else if (typeof t.amount === 'number') type = t.amount >= 0 ? 'incoming' : 'outgoing'
+        if (!type) continue
+        // timestamp detection
+        let createdAt: number | undefined
+        if (typeof t.timestamp === 'number') {
+          createdAt = t.timestamp * (t.timestamp < 2_000_000_000 ? 1000 : 1)
+        } else if (typeof t.created_at === 'number') {
+          createdAt = t.created_at * (t.created_at < 2_000_000_000 ? 1000 : 1)
+        } else if (typeof t.time === 'number') {
+          createdAt = t.time * (t.time < 2_000_000_000 ? 1000 : 1)
+        } else if (typeof t.date === 'number') {
+          createdAt = t.date * (t.date < 2_000_000_000 ? 1000 : 1)
+        } else if (typeof t.date === 'string') {
+          createdAt = Date.parse(t.date)
+        }
+        if (!createdAt || Number.isNaN(createdAt)) createdAt = Date.now()
+        const description: string | undefined = t.description || t.memo || t.note || undefined
+        const id = t.id || t.payment_hash || t.preimage || t.hash || `${createdAt}-${type}-${msats}`
+        out.push({ id: String(id), type, amountMsats: msats, createdAt, description })
+      } catch {
+        // ignore bad entries
+      }
+    }
+    // sort desc by time
+    out.sort((a, b) => b.createdAt - a.createdAt)
+    return out
+  }
+
+  const fetchTransactions = async () => {
+    if (!nwcObject) return
+    const anyNwc = nwcObject as any
+    let raw: any
+    try {
+      if (typeof anyNwc.getTransactions === 'function') {
+        raw = await anyNwc.getTransactions({ limit: 50 })
+      } else if (typeof anyNwc.request === 'function') {
+        try {
+          raw = await anyNwc.request('get_transactions', { limit: 50 })
+        } catch (e1) {
+          raw = await anyNwc.request('list_transactions', { limit: 50 })
+        }
+      }
+      let arr: any[] | undefined
+      if (Array.isArray(raw)) arr = raw
+      else if (Array.isArray(raw?.transactions)) arr = raw.transactions
+      else if (Array.isArray(raw?.result?.transactions)) arr = raw.result.transactions
+      if (arr && arr.length) {
+        const norm = normalizeTxArray(arr)
+        if (norm.length) {
+          setTransactions(prev => {
+            // merge & dedupe by id
+            const map = new Map<string, WalletTransaction>()
+            for (const tx of [...norm, ...prev]) {
+              map.set(tx.id, tx)
+            }
+            const merged = Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt).slice(0, 200)
+            try {
+              const existingData = localStorage.getItem('wallet')
+              let walletData: any = existingData ? JSON.parse(existingData) : {}
+              localStorage.setItem('wallet', JSON.stringify({ ...walletData, transactions: merged }))
+            } catch {}
+            return merged
+          })
+        }
+      }
+    } catch {
+      // ignore if wallet doesn't support listing
+    }
   }
 
   const refreshBalance = async (notification?: any) => {
@@ -142,7 +233,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (nwcObject) {
       nwcObject.subscribeNotifications(refreshBalance)
-      refreshBalance()
+      // Set baseline and fetch initial data
+      ;(async () => {
+        await refreshBalance()
+        await fetchTransactions()
+      })()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nwcObject])
