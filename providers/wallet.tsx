@@ -32,7 +32,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const appendTransaction = (tx: WalletTransaction) => {
     setTransactions(prev => {
       // De-duplicate naive: skip if same type+amount within ~10s window
-      const exists = prev.some(p => p.type === tx.type && p.amountMsats === tx.amountMsats && Math.abs(p.createdAt - tx.createdAt) < 10_000)
+      const exists = prev.some(p => p.type === tx.type && p.amountMsats === tx.amountMsats && Math.abs(p.createdAt - tx.createdAt) < 5_000 && (!!p.description === !!tx.description))
       const txWithPersistFlag = exists ? tx : { ...tx, _persisted: postedIdsRef.current.has(tx.id) }
       const next = exists ? prev : [txWithPersistFlag, ...prev].slice(0, 200)
       try {
@@ -234,54 +234,77 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const classifyNotification = (notification: any): WalletTransaction | null => {
+    if (!notification) return null
+    const n = (notification as any).notification ?? (notification as any)
+    if (!n || typeof n !== 'object') return null
+    // Extract amounts
+    const rawAmount = n.amount ?? n.amount_msat ?? n.amountMsat ?? n.msats
+    const balanceChange = n.balance_change_msat ?? n.balanceChangeMsat ?? n.balance_delta ?? n.delta
+    const paymentHash = n.payment_hash || n.hash || n.id
+    const createdTs = n.timestamp || n.time || n.created_at || n.date
+    let createdAt: number
+    if (typeof createdTs === 'number') {
+      createdAt = createdTs * (createdTs < 2_000_000_000 ? 1000 : 1)
+    } else if (typeof createdTs === 'string') {
+      createdAt = Date.parse(createdTs)
+    } else {
+      createdAt = Date.now()
+    }
+    if (!rawAmount && !balanceChange) return null
+    // Determine msats
+    let msatsSource = typeof balanceChange === 'number' ? balanceChange : rawAmount
+    if (typeof msatsSource !== 'number') return null
+    const msatsAbs = Math.abs(msatsSource)
+    // Determine type priority:
+    // 1. Explicit direction field
+    // 2. Explicit type strings containing receive/sent
+    // 3. Balance change sign
+    // 4. Raw amount sign
+    let type: 'incoming' | 'outgoing' | undefined
+    if (n.direction === 'in') type = 'incoming'
+    else if (n.direction === 'out') type = 'outgoing'
+    else if (typeof n.type === 'string') {
+      const tLower = n.type.toLowerCase()
+      if (/(receive|received|incoming|deposit)/.test(tLower)) type = 'incoming'
+      else if (/(send|sent|outgoing|withdraw)/.test(tLower)) type = 'outgoing'
+    }
+    if (!type && typeof balanceChange === 'number') type = balanceChange > 0 ? 'incoming' : 'outgoing'
+    if (!type && typeof rawAmount === 'number') type = rawAmount > 0 ? 'incoming' : 'outgoing'
+    if (!type) return null
+    const description = n.description || n.memo || n.note || undefined
+    return {
+      id: paymentHash ? String(paymentHash) : `${createdAt}-${type}-${msatsAbs}`,
+      type,
+      amountMsats: msatsAbs,
+      createdAt,
+      description
+    }
+  }
+
   const refreshBalance = async (notification?: any) => {
     console.log(notification)
 
     let recognizedByNotification = false
-    if (notification) {
-      const n = (notification as any).notification ?? (notification as any)
-      const typeRaw = n?.type as string | undefined
-      const amountAny = n?.amount ?? n?.amount_msat ?? n?.amountMsat ?? n?.msats
-      if (typeof amountAny === 'number') {
-        // Normalize type using multiple possible fields
-        let normalizedType: 'incoming' | 'outgoing' | undefined
-        if (typeRaw === 'incoming' || typeRaw === 'outgoing') {
-          normalizedType = typeRaw
-        } else if (n?.direction === 'in') {
-          normalizedType = 'incoming'
-        } else if (n?.direction === 'out') {
-          normalizedType = 'outgoing'
-        } else if (typeof n?.amount === 'number') {
-          normalizedType = n.amount > 0 ? 'incoming' : 'outgoing'
-        }
-
-        if (normalizedType) {
-          recognizedByNotification = true
-          const msats = Math.abs(Number(amountAny))
-          const tx: WalletTransaction = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            type: normalizedType,
-            amountMsats: msats,
-            createdAt: Date.now()
-          }
-          appendTransaction(tx)
-          toast({
-            title: tx.type === 'incoming' ? 'Received' : 'Paid',
-            variant: tx.type === 'incoming' ? 'default' : 'destructive',
-            description: (
-              <span className="flex items-center gap-2">
-                {tx.type === 'incoming' ? (
-                  <ArrowDownLeft className="w-4 h-4 text-green-600" />
-                ) : (
-                  <ArrowUpRight className="w-4 h-4 text-red-600" />
-                )}
-                {tx.type === 'incoming' ? '+' : '-'}
-                {Math.round(tx.amountMsats / 1000)} sats
-              </span>
-            )
-          })
-        }
-      }
+    const parsedTx = classifyNotification(notification)
+    if (parsedTx) {
+      recognizedByNotification = true
+      appendTransaction(parsedTx)
+      toast({
+        title: parsedTx.type === 'incoming' ? 'Received' : 'Paid',
+        variant: parsedTx.type === 'incoming' ? 'default' : 'destructive',
+        description: (
+          <span className="flex items-center gap-2">
+            {parsedTx.type === 'incoming' ? (
+              <ArrowDownLeft className="w-4 h-4 text-green-600" />
+            ) : (
+              <ArrowUpRight className="w-4 h-4 text-red-600" />
+            )}
+            {parsedTx.type === 'incoming' ? '+' : '-'}
+            {Math.round(parsedTx.amountMsats / 1000)} sats
+          </span>
+        )
+      })
     }
 
     try {
