@@ -304,6 +304,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Step 2: Classify notification into a candidate transaction.
     const parsedTxOriginal = classifyNotification(notification)
+    if (notification) {
+      try {
+        console.log('RAW_NOTIFICATION', JSON.stringify(notification, null, 2))
+      } catch {
+        console.log('RAW_NOTIFICATION', notification)
+      }
+    }
     let parsedTx = parsedTxOriginal ? { ...parsedTxOriginal } : null
 
     // Step 3: Override direction using balance delta if it contradicts classification.
@@ -313,11 +320,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (parsedTx.type !== deltaDirection) {
         const satsTx = Math.round(parsedTx.amountMsats / 1000)
         const satsDelta = Math.abs(Math.round(delta / 1000))
-        if (Math.abs(satsTx - satsDelta) <= 2) { // tolerance of 2 sats for rounding
+        if (Math.abs(satsTx - satsDelta) <= 2 || satsTx === satsDelta) { // tolerance or exact match
           parsedTx.type = deltaDirection
           // Ensure ID remains unique with new direction suffix.
           if (parsedTx.id.includes('-incoming') || parsedTx.id.includes('-outgoing')) {
             parsedTx.id = parsedTx.id.replace(/-(incoming|outgoing)$/i, `-${deltaDirection}`)
+          }
+        }
+        // Additional fallback: if delta positive and we classified outgoing but tx amount equals delta, force incoming.
+        if (delta > 0 && parsedTx.type === 'outgoing' && satsTx === satsDelta) {
+          parsedTx.type = 'incoming'
+          if (parsedTx.id.includes('-outgoing')) {
+            parsedTx.id = parsedTx.id.replace(/-outgoing$/i, '-incoming')
+          } else {
+            parsedTx.id = `${parsedTx.id}-incoming-fix`
           }
         }
       }
@@ -335,6 +351,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     // Step 5: Append and toast if we have a parsed/inferred transaction.
     if (parsedTx) {
+      // Ensure incoming/outgoing sign consistency: incoming always positive msats
+      if (parsedTx.type === 'incoming' && parsedTx.amountMsats < 0) {
+        parsedTx.amountMsats = Math.abs(parsedTx.amountMsats)
+      }
+      if (parsedTx.type === 'outgoing' && parsedTx.amountMsats < 0) {
+        // Outgoing amounts we store as positive magnitude
+        parsedTx.amountMsats = Math.abs(parsedTx.amountMsats)
+      }
       appendTransaction(parsedTx)
       toast({
         title: parsedTx.type === 'incoming' ? 'Received' : 'Paid',
