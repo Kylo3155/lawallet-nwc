@@ -24,7 +24,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [nwcObject, setNwcObject] = useState<nwc.NWCClient | null>(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
-  const { userId, get, put, logout: logoutApi } = useAPI()
+  const { userId, get, post, put, logout: logoutApi } = useAPI()
   const prevBalanceRef = useRef<number | undefined>(undefined)
   const hasBaselineRef = useRef(false)
 
@@ -49,6 +49,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       return next
     })
+    // Best-effort server persistence (requires authenticated API)
+    ;(async () => {
+      try {
+        if (userId) {
+          await post('/api/transactions', {
+            type: tx.type,
+            amountMsats: tx.amountMsats,
+            description: tx.description,
+            createdAt: tx.createdAt,
+            externalId: tx.id
+          })
+        }
+      } catch {}
+    })()
   }
 
   const normalizeTxArray = (arr: any[]): WalletTransaction[] => {
@@ -99,6 +113,53 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }
 
   const fetchTransactions = async () => {
+    // 1) Try server-side history first (cross-device, deduped)
+    try {
+      if (userId) {
+        const { data } = await get<{ transactions: any[] }>(
+          `/api/transactions?limit=50`
+        )
+        const serverArr = Array.isArray((data as any)?.transactions)
+          ? (data as any).transactions
+          : []
+        if (serverArr.length) {
+          const normalized: WalletTransaction[] = serverArr
+            .map((t: any) => ({
+              id: String(t.id ?? t.externalId ?? `${t.createdAt}-${t.type}-${t.amountMsats}`),
+              type: t.type,
+              amountMsats: Number(t.amountMsats),
+              description: t.description || undefined,
+              createdAt: typeof t.createdAt === 'string' || t.createdAt instanceof Date
+                ? new Date(t.createdAt).getTime()
+                : Number(t.createdAt) || Date.now()
+            }))
+            .filter(
+              (t: WalletTransaction) =>
+                t.amountMsats > 0 && (t.type === 'incoming' || t.type === 'outgoing')
+            )
+          if (normalized.length) {
+            setTransactions(prev => {
+              const map = new Map<string, WalletTransaction>()
+              for (const tx of [...normalized, ...prev]) map.set(tx.id, tx)
+              const merged = Array.from(map.values())
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .slice(0, 200)
+              try {
+                const existingData = localStorage.getItem('wallet')
+                let walletData: any = existingData ? JSON.parse(existingData) : {}
+                localStorage.setItem(
+                  'wallet',
+                  JSON.stringify({ ...walletData, transactions: merged })
+                )
+              } catch {}
+              return merged
+            })
+          }
+        }
+      }
+    } catch {}
+
+    // 2) Then try wallet-side listing via NWC (if supported)
     if (!nwcObject) return
     const anyNwc = nwcObject as any
     let raw: any
@@ -241,6 +302,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nwcObject])
+
+  // Also fetch server-side transactions when API user is available (even before NWC connects)
+  useEffect(() => {
+    if (userId) {
+      fetchTransactions()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   // Load wallet data from localStorage on mount
   useEffect(() => {

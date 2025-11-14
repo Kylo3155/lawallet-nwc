@@ -94,3 +94,16 @@ model Settings {
 
   @@index([name])
 }
+
+model WalletTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  type        String
+  amountMsats Int
+  description String?
+  externalId  String?  @unique
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
