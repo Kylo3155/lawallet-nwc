@@ -144,7 +144,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (serverArr.length) {
           const normalized: WalletTransaction[] = serverArr
             .map((t: any) => ({
-              id: String(t.id ?? t.externalId ?? `${t.createdAt}-${t.type}-${t.amountMsats}`),
+              // Prefer externalId to align with locally generated IDs and avoid duplicates
+              id: String(t.externalId ?? t.id ?? `${t.createdAt}-${t.type}-${t.amountMsats}`),
               type: t.type,
               amountMsats: Number(t.amountMsats),
               description: t.description || undefined,
