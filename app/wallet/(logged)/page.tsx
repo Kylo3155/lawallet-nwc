@@ -26,6 +26,22 @@ export default function WalletPage() {
   const startDeltaMsatsRef = useRef<number>(0)
   const hasAppliedStartDeltaRef = useRef<boolean>(false)
   const addressRef = useRef<HTMLDivElement>(null)
+  const formatRelative = (ts: number) => {
+    const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+    const diffMs = Date.now() - ts
+    const sec = Math.round(diffMs / 1000)
+    if (Math.abs(sec) < 60) return rtf.format(-sec, 'second')
+    const min = Math.round(sec / 60)
+    if (Math.abs(min) < 60) return rtf.format(-min, 'minute')
+    const hrs = Math.round(min / 60)
+    if (Math.abs(hrs) < 24) return rtf.format(-hrs, 'hour')
+    const days = Math.round(hrs / 24)
+    if (Math.abs(days) < 30) return rtf.format(-days, 'day')
+    const months = Math.round(days / 30)
+    if (Math.abs(months) < 12) return rtf.format(-months, 'month')
+    const years = Math.round(months / 12)
+    return rtf.format(-years, 'year')
+  }
 
   // Fetch cards for the current user
   const { cards, isLoading: cardsLoading } = useCards(userId)
@@ -276,6 +292,49 @@ export default function WalletPage() {
               </div>
             )}
 
+            {/* Transactions summary section (always visible if connected) */}
+            {nwcUri && (
+              <div className="flex flex-col gap-2">
+                <h4 className="text-sm text-white">Transactions</h4>
+                {transactions && transactions.length > 0 ? (
+                  <div className="flex items-center justify-between border p-3 rounded-xl bg-black/40">
+                    <div className="flex items-center gap-3">
+                      {transactions[0].type === 'incoming' ? (
+                        <ArrowDownLeft className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <ArrowUpRight className="w-5 h-5 text-red-500" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-sm text-white font-medium">
+                          {transactions[0].type === 'incoming' ? 'Received' : 'Sent'}
+                        </span>
+                        <span
+                          className="text-xs text-muted-foreground"
+                          title={new Date(transactions[0].createdAt).toLocaleString()}
+                        >
+                          {formatRelative(transactions[0].createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-white font-bold">
+                      {Math.round(transactions[0].amountMsats / 1000)} sats
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No transactions yet.</p>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="self-start bg-gray-800 hover:bg-gray-700 text-white"
+                  onClick={() => router.push('/wallet/transactions')}
+                >
+                  <List className="mr-2 h-4 w-4" />
+                  View All Transactions
+                </Button>
+              </div>
+            )}
+
             {/* {!nwcUri && (
               <Button
                 className="w-full"
@@ -302,41 +361,6 @@ export default function WalletPage() {
 
           {cards.length > 0 && (
             <div className="flex flex-col gap-4">
-              {/* Last Transaction */}
-              {transactions && transactions.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-sm text-white">Last Transaction</h4>
-                  <div className="flex items-center justify-between border p-3 rounded-xl bg-black/40">
-                    <div className="flex items-center gap-3">
-                      {transactions[0].type === 'incoming' ? (
-                        <ArrowDownLeft className="w-5 h-5 text-green-500" />
-                      ) : (
-                        <ArrowUpRight className="w-5 h-5 text-red-500" />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-sm text-white font-medium">
-                          {transactions[0].type === 'incoming' ? 'Received' : 'Sent'}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {new Date(transactions[0].createdAt).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-white font-bold">
-                      {Math.round(transactions[0].amountMsats / 1000)} sats
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    className="self-start bg-gray-800 hover:bg-gray-700 text-white"
-                    onClick={() => router.push('/wallet/transactions')}
-                  >
-                    <List className="mr-2 h-4 w-4" />
-                    View All Transactions
-                  </Button>
-                </div>
-              )}
               {cards.length > 1 && (
                 <h4 className="text-sm text-white">My Cards</h4>
               )}
