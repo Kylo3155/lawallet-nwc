@@ -303,13 +303,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const delta = haveBaseline && typeof newBalance === 'number' ? newBalance - prevBalance : 0
 
     // Step 2: Classify notification into a candidate transaction.
+    const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
     const parsedTxOriginal = classifyNotification(notification)
-    if (notification) {
+    if (debug && notification) {
       try {
-        console.log('RAW_NOTIFICATION', JSON.stringify(notification, null, 2))
+        console.log('[CLASSIFY_INPUT]', JSON.stringify(notification, null, 2))
       } catch {
-        console.log('RAW_NOTIFICATION', notification)
+        console.log('[CLASSIFY_INPUT]', notification)
       }
+      console.log('[CLASSIFY_RESULT_INITIAL]', parsedTxOriginal)
     }
     let parsedTx = parsedTxOriginal ? { ...parsedTxOriginal } : null
 
@@ -336,6 +338,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             parsedTx.id = `${parsedTx.id}-incoming-fix`
           }
         }
+        if (debug) console.log('[DELTA_ADJUST]', { delta, finalType: parsedTx.type })
       }
     }
 
@@ -347,6 +350,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         amountMsats: delta,
         createdAt: Date.now()
       }
+      if (debug) console.log('[DELTA_INFER_INCOMING]', parsedTx)
     }
 
     // Step 5: Append and toast if we have a parsed/inferred transaction.
@@ -360,6 +364,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         parsedTx.amountMsats = Math.abs(parsedTx.amountMsats)
       }
       appendTransaction(parsedTx)
+      if (debug) console.log('[APPENDED_TX]', parsedTx)
       toast({
         title: parsedTx.type === 'incoming' ? 'Received' : 'Paid',
         variant: parsedTx.type === 'incoming' ? 'default' : 'destructive',
@@ -403,8 +408,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (nwcObject) {
-      nwcObject.subscribeNotifications(refreshBalance)
-      // Set baseline and fetch initial data
+      nwcObject.subscribeNotifications((evt: any) => {
+        const debug = typeof window !== 'undefined' && localStorage.getItem('walletDebug') === 'true'
+        if (debug) {
+          try {
+            console.log('[NWC_NOTIFICATION]', JSON.stringify(evt, null, 2))
+          } catch {
+            console.log('[NWC_NOTIFICATION]', evt)
+          }
+        }
+        refreshBalance(evt)
+      })
       ;(async () => {
         await refreshBalance()
         await fetchTransactions()
