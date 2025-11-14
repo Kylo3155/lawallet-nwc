@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings, Loader2, BadgeAlert, Send, QrCode, Download } from 'lucide-react'
+import { Settings, Loader2, BadgeAlert, Send, QrCode, Download, ArrowDownLeft, ArrowUpRight, List } from 'lucide-react'
 
 import { useWallet } from '@/hooks/use-wallet'
 import { useAPI } from '@/providers/api'
@@ -16,7 +16,7 @@ import { LaWalletIcon } from '@/components/icon/lawallet'
 import { NwcLnWidget } from '@/components/wallet/settings/nwc-ln-widget'
 
 export default function WalletPage() {
-  const { lightningAddress, nwcUri, balance, isConnected } = useWallet()
+  const { lightningAddress, nwcUri, balance, isConnected, transactions } = useWallet()
   const { isHydrated: apiHydrated, signer, userId } = useAPI()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(!signer)
@@ -302,6 +302,41 @@ export default function WalletPage() {
 
           {cards.length > 0 && (
             <div className="flex flex-col gap-4">
+              {/* Last Transaction */}
+              {transactions && transactions.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <h4 className="text-sm text-white">Last Transaction</h4>
+                  <div className="flex items-center justify-between border p-3 rounded-xl bg-black/40">
+                    <div className="flex items-center gap-3">
+                      {transactions[0].type === 'incoming' ? (
+                        <ArrowDownLeft className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <ArrowUpRight className="w-5 h-5 text-red-500" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-sm text-white font-medium">
+                          {transactions[0].type === 'incoming' ? 'Received' : 'Sent'}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(transactions[0].createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-white font-bold">
+                      {Math.round(transactions[0].amountMsats / 1000)} sats
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="self-start bg-gray-800 hover:bg-gray-700 text-white"
+                    onClick={() => router.push('/wallet/transactions')}
+                  >
+                    <List className="mr-2 h-4 w-4" />
+                    View All Transactions
+                  </Button>
+                </div>
+              )}
               {cards.length > 1 && (
                 <h4 className="text-sm text-white">My Cards</h4>
               )}

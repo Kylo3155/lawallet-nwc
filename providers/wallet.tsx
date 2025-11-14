@@ -2,7 +2,7 @@
 
 import type React from 'react'
 import { createContext, useContext, useEffect, useState } from 'react'
-import type { WalletContextType, WalletState } from '@/types/wallet'
+import type { WalletContextType, WalletState, WalletTransaction } from '@/types/wallet'
 import { nwc } from '@getalby/sdk'
 import { toast } from '@/hooks/use-toast'
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
@@ -18,6 +18,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     nwcUri: null,
     balance: 0
   })
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([])
 
   const [nwcObject, setNwcObject] = useState<nwc.NWCClient | null>(null)
   const [isConnected, setIsConnected] = useState(false)
@@ -29,6 +30,31 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     if (notification) {
       const { type, amount } = notification.notification
+      // Append to transactions log
+      try {
+        const tx: WalletTransaction = {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          type: type === 'incoming' ? 'incoming' : 'outgoing',
+          amountMsats: Number(amount) || 0,
+          createdAt: Date.now()
+        }
+        setTransactions(prev => {
+          const next = [tx, ...prev].slice(0, 200)
+          // persist immediately
+          try {
+            const existingData = localStorage.getItem('wallet')
+            let walletData: any = {}
+            if (existingData) {
+              walletData = JSON.parse(existingData)
+            }
+            localStorage.setItem('wallet', JSON.stringify({
+              ...walletData,
+              transactions: next
+            }))
+          } catch {}
+          return next
+        })
+      } catch {}
       toast({
         title: type === 'incoming' ? 'Received' : 'Paid',
         variant: type === 'incoming' ? 'default' : 'destructive',
@@ -91,6 +117,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           nwcUri: parsed.nwcUri || null,
           balance: parsed.balance || 0
         }))
+        if (Array.isArray(parsed.transactions)) {
+          setTransactions(parsed.transactions)
+        }
       } catch (error) {
         console.error('Failed to parse saved wallet data:', error)
       }
@@ -117,11 +146,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           ...walletData,
           lightningAddress: walletState.lightningAddress,
           nwcUri: walletState.nwcUri,
-          balance: walletState.balance
+          balance: walletState.balance,
+          transactions
         })
       )
     }
-  }, [walletState, isHydrated])
+  }, [walletState, transactions, isHydrated])
 
   const setLightningAddress = async (username: string) => {
     if (!userId) {
@@ -257,6 +287,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setNwcUri,
     payInvoice,
     createInvoice,
+    transactions,
     logout,
     isConnected,
     isHydrated
