@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppViewport, AppNavbar, AppContent } from '@/components/app'
 import { Button } from '@/components/ui/button'
@@ -9,6 +10,14 @@ import { ArrowLeft, ArrowDownLeft, ArrowUpRight, Trash2 } from 'lucide-react'
 export default function TransactionsPage() {
   const router = useRouter()
   const { transactions, clearTransactions } = useWallet()
+  const [showDelete, setShowDelete] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      setShowDelete(localStorage.getItem('walletDebug') === 'true')
+    } catch {}
+  }, [])
 
   const formatRelative = (ts: number) => {
     const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -39,19 +48,23 @@ export default function TransactionsPage() {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="font-semibold text-white">Transactions</h2>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="bg-red-600/20 hover:bg-red-600/30 text-red-400"
-          title="Clear transaction history"
-          onClick={() => {
-            if (confirm('Clear all local & server transactions? This cannot be undone.')) {
-              clearTransactions()
-            }
-          }}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {showDelete ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="bg-red-600/20 hover:bg-red-600/30 text-red-400"
+            title="Clear transaction history"
+            onClick={() => {
+              if (confirm('Clear all local & server transactions? This cannot be undone.')) {
+                clearTransactions()
+              }
+            }}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : (
+          <div />
+        )}
       </AppNavbar>
       <AppContent>
         <div className="container flex flex-col gap-4">
