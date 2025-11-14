@@ -264,19 +264,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // 3. Balance change sign
     // 4. Raw amount sign
     let type: 'incoming' | 'outgoing' | undefined
-    if (n.direction === 'in') type = 'incoming'
-    else if (n.direction === 'out') type = 'outgoing'
-    else if (typeof n.type === 'string') {
+    // Strong explicit credit/debit overrides others
+    if (typeof credit === 'number' && credit > 0 && (!debit || debit === 0)) type = 'incoming'
+    else if (typeof debit === 'number' && debit > 0 && (!credit || credit === 0)) type = 'outgoing'
+    if (!type && n.direction === 'in') type = 'incoming'
+    else if (!type && n.direction === 'out') type = 'outgoing'
+    if (!type && typeof n.type === 'string') {
       const tLower = n.type.toLowerCase()
-      if (/(receive|received|incoming|deposit)/.test(tLower)) type = 'incoming'
-      else if (/(send|sent|outgoing|withdraw)/.test(tLower)) type = 'outgoing'
+      if (/(receive|received|incoming|deposit|funds added)/.test(tLower)) type = 'incoming'
+      else if (/(send|sent|outgoing|withdraw|spent|payment)/.test(tLower)) type = 'outgoing'
     }
     if (!type && typeof balanceChange === 'number') type = balanceChange > 0 ? 'incoming' : 'outgoing'
     if (!type && typeof rawAmount === 'number') type = rawAmount > 0 ? 'incoming' : 'outgoing'
     if (!type) return null
     const description = n.description || n.memo || n.note || undefined
+    // Include type in id to prevent outgoing/incoming collision on same payment hash
     return {
-      id: paymentHash ? String(paymentHash) : `${createdAt}-${type}-${msatsAbs}-${Math.random().toString(36).slice(2,8)}`,
+      id: paymentHash ? `${paymentHash}-${type}` : `${createdAt}-${type}-${msatsAbs}-${Math.random().toString(36).slice(2,8)}`,
       type,
       amountMsats: msatsAbs,
       createdAt,
